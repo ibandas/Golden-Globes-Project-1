@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from imdb import IMDb, IMDbError
 import unicodedata
 import re
+import time
+from fuzzywuzzy import fuzz  # requires python-Levenshtein or it will be terribly slow
 
 nltk.download('stopwords')
 nltk.download('words')
@@ -274,36 +276,155 @@ def calculate_hosts(ne):
     return hosts
 
 
+def get_tweets(year):
+    tweets = []
+    try:
+        with open('gg' + str(year) + '.json', 'r', encoding='utf8') as f:
+            tweets = json.load(f)
+    except json.JSONDecodeError:
+        with open('gg' + str(year) + '.json', 'r', encoding='utf8') as f:
+            for line in f:
+                tweets.append(json.loads(line))
+    return tweets
+
+
+def dict_inc(dictionary, key):
+    if key in dictionary:
+        dictionary[key] += 1
+    else:
+        dictionary[key] = 1
+    return dictionary
+
+
+def dict_sort(dictionary):
+    sorted_d = sorted(dictionary.items(), reverse=True, key=lambda x: x[1])
+    return sorted_d
+
+
+def all_after(input_list, value):
+    for i in range(len(input_list)):
+        if input_list[i].lower() == value:
+            return input_list[i+1:]
+    return input_list
+
+
+def all_before(input_list, value):
+    for i in range(len(input_list)):
+        if input_list[i].lower() == value:
+            return input_list[:i]
+    return input_list
+
+
+def all_between(input_list, after_this, before_this):
+    return all_after(all_before(input_list, before_this), after_this)
+
+
+def concentrate(dictionary):
+    copy_dict = {}
+    for item1 in dictionary:
+        copy_dict[item1] = dictionary[item1]
+        for item2 in dictionary:
+            if len(item1) > len(item2):
+                ratio = fuzz.token_set_ratio(item2, item1) / 100
+                to_add = ratio * ratio * dictionary[item2]
+                copy_dict[item1] += to_add
+    for item in copy_dict:
+        copy_dict[item] = copy_dict[item] / (len(item)**(1/2))
+    return copy_dict
+
+
 def get_awards(year):
     '''Awards is a list of strings. Do NOT change the name
     of this function or what it returns.'''
     # Your code here
-    return ["best screenplay - motion picture",
-            "best director - motion picture",
-            "best performance by an actress in a television series - comedy or musical",
-            "best foreign language film",
-            "best performance by an actor in a supporting role in a motion picture",
-            "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television",
-            "best motion picture - comedy or musical",
-            "best performance by an actress in a motion picture - comedy or musical",
-            "best mini-series or motion picture made for television",
-            "best original score - motion picture",
-            "best performance by an actress in a television series - drama",
-            "best performance by an actress in a motion picture - drama",
-            "cecil b. demille award",
-            "best performance by an actor in a motion picture - comedy or musical",
-            "best motion picture - drama",
-            "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television",
-            "best performance by an actress in a supporting role in a motion picture",
-            "best television series - drama",
-            "best performance by an actor in a mini-series or motion picture made for television",
-            "best performance by an actress in a mini-series or motion picture made for television",
-            "best animated feature film",
-            "best original song - motion picture",
-            "best performance by an actor in a motion picture - drama",
-            "best television series - comedy or musical",
-            "best performance by an actor in a television series - drama",
-            "best performance by an actor in a television series - comedy or musical"]
+    start = time.time()
+    tweets = get_tweets(year)
+
+    sr = ['golden', 'globe', 'globes', 'goldenglobes', 'goldenglobe', 'show', '2020', 'goldenglobes2020',
+          'goldenglobes2015', 'nbc', 'cbr', 'click', 'award', 'experience', 'i', 'read', 'amp', 'answer',
+          'follow', 'category']
+    chunked_dict = {}
+    chunkGram1 = r"""Chunk: {<JJS|RBS><NN><IN><DT><NN><IN><DT><NN><NN><:|,><JJ><CC><NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><NN><NN><:|,><NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><JJ><NN><IN><DT><NN><NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><JJ><NN><IN><DT><NN><,><JJ><NN><CC><NN><NN><VBN><IN><NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><JJ><NN><CC><DT><NN><NN><VBN><IN><NN>|<JJS|RBS><JJ|NN><NN><:|,><JJ><CC>?<NN>|<JJS|RBS><JJ|NN><NN><:|,><NN><NN>|<JJS|RBS><NN><NN><:|,><VBD>|<JJS|RBS><NN><:|,><NN><NN>|<JJS|RBS><NN><JJ><NN><CC><NN><NN><VBN><IN><NN>}"""
+
+    chunkGram2 = r"""Chunk: {<JJS|RBS><NN><IN><DT><NN><IN><DT><NN><NN><:|,>?<NN><CC><JJ>|<JJS|RBS><NN><IN><DT><NN><IN><DT><NN><NN><:|,>?<NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><JJ><NN><IN><DT><NN><NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><JJ><NN><IN><DT><NN><,>?<NNS><CC><NN><NN><VBN><IN><NN>|<JJS|RBS><NN><IN><DT><NN><IN><DT><NNS><CC><NN><NN><VBN><IN><NN>|<JJS|RBS><NN><NN><:|,>?<NN><CC>?<JJ>?|<JJS|RBS><JJ|NN><NN><:|,>?<NN><NN>|<JJS|RBS><NN><:|,>?<NN><NN>|<JJS|RB|RBS><VBN|JJ><NN><NN>|<JJS|RBS><NNS><CC><NN><NN><VBN><IN><NN>}"""
+
+    if int(year) > 2016:
+        chunkGram = chunkGram1
+    else:
+        chunkGram = chunkGram2
+    chunkParser = nltk.RegexpParser(chunkGram)
+    for i in range(min(len(tweets), 1000000)):
+        tweet = tweets[i]['text']
+        tweet_l = tweet.lower()
+        tokenized = re.findall(r"\w+-\w+|\w+|-", tweet_l)
+        tokenized = all_before(all_before(tokenized, 'https'), 'http')
+        for j in range(len(tokenized)):
+            if tokenized[j] == 'tv':
+                tokenized[j] = 'television'
+        tokenized = [w for w in tokenized if w.lower() not in sr]
+
+        word = ''
+        if 'wins' in tokenized:
+            word = 'wins'
+        elif 'gets' in tokenized:
+            word = 'gets'
+        elif 'goes' in tokenized:
+            word = 'goes'
+        elif 'nominated' in tokenized:
+            word = 'nominated'
+        elif 'nominees' in tokenized:
+            word = 'nominees'
+        after_wins = ['']
+        if word in ['wins', 'gets']:
+            after_wins = all_after(tokenized, word)
+        elif word in ['goes', 'nominees']:
+            after_wins = all_before(tokenized, word)
+        elif word == 'nominated':
+            after_wins = all_after(tokenized, word)
+            if len(after_wins) >= 2 and after_wins[0] == 'for':
+                after_wins = after_wins[1:]
+
+        if after_wins and after_wins != ['']:
+            chunked = chunkParser.parse(nltk.pos_tag(after_wins))
+            for chunk in chunked:
+                if str(chunk)[0:6] == '(Chunk':
+                    sentence = ' '.join([chonk[0] for chonk in chunk])
+                    if sentence[0] == "'":
+                        sentence = sentence[1:]
+                    chunked_dict = dict_inc(chunked_dict, sentence.lower())
+    print(time.time() - start)
+    chunked_dict = concentrate(chunked_dict)
+    sorted_d = sorted(chunked_dict.items(), key=lambda x: x[1])
+    to_delete = []
+    for i in range(len(sorted_d) - 1):
+        for j in range(i + 1, len(sorted_d)):
+            if fuzz.ratio(sorted_d[i][0], sorted_d[j][0]) >= 98:
+                to_delete.append(i)
+    new_d = [sorted_d[i] for i in range(len(sorted_d)) if i not in to_delete]
+    new_d.reverse()
+    highest = new_d[0][1]
+    cutoff = highest * 0.55
+    if highest > 1000:
+        cutoff = .8 * highest
+    elif highest > 250:
+        cutoff = .75 * highest
+    elif highest > 200:
+        cutoff = .7 * highest
+    elif highest > 50:
+        cutoff = .65 * highest
+    elif highest > 20:
+        cutoff = .5 * highest
+    elif highest > 10:
+        cutoff = .4 * highest
+    elif highest < 10:
+        cutoff = .11 * highest
+    else:
+        cutoff = .5 * highest
+
+    awardds = [awardd[0] for awardd in new_d if awardd[0] and awardd[1] >= cutoff]
+    print(len(awardds))
+    print('Finished in', (time.time() - start))
+    return awardds
 
 
 def get_nominees(year):
