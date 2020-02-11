@@ -102,6 +102,7 @@ awards_regex = {
 }
 
 
+
 winners_regex = {
     r"^(?=.*\b(drama)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - drama'],
     r"^(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - comedy or musical'],
@@ -201,6 +202,7 @@ def get_hosts(year):
             if start + pot < datetime.now():
                 break
             tweet_text = tweet.get('text')
+
             ultimate_match = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
             if ultimate_match:
                 matches = re.findall(master_regex, tweet_text.lower(), re.MULTILINE)
@@ -215,6 +217,7 @@ def get_hosts(year):
         hosts = calculate_hosts(merged)
         print(hosts)
         return hosts
+
 
 
 # This function is to print out the most common named entities
@@ -279,10 +282,12 @@ def calculate_hosts(ne):
 def get_tweets(year):
     tweets = []
     try:
+
         with open('./data/gg{year}.json'.format(year=year)) as f:
             tweets = json.load(f)
     except json.JSONDecodeError:
         with open('./data/gg{year}.json'.format(year=year)) as f:
+
             for line in f:
                 tweets.append(json.loads(line))
     return tweets
@@ -422,6 +427,7 @@ def get_awards(year):
         cutoff = .5 * highest
 
     awardds = [awardd[0] for awardd in new_d if awardd[0] and awardd[1] >= cutoff]
+
     print(awardds)
     print(len(awardds))
     print('Finished in', (time.time() - start))
@@ -432,6 +438,7 @@ def get_nominees(year):
     '''Nominees is a dictionary with the hard coded award
     names as keys, and each entry a list of strings. Do NOT change
     the name of this function or what it returns.'''
+
 
     awards_mapped_to_entities = {
         'best motion picture - drama': defaultdict(int),
@@ -521,6 +528,7 @@ def get_winner(year):
     # Then create a dynamic dict that has each award as the key again
     # but the values are frequencyMap (similar to hosts).
     # So it's a dict nested in a dict
+
     awards_mapped_to_winners = {
         'best motion picture - drama': defaultdict(int),
         'best motion picture - comedy or musical': defaultdict(int),
@@ -599,6 +607,40 @@ def get_winner(year):
     return result
 
 
+    #
+    # '''Winners is a dictionary with the hard coded award
+    # names as keys, and each entry containing a single string.
+    # Do NOT change the name of this function or what it returns.'''
+    # # Your code here
+    # return {
+    #     "best screenplay - motion picture": "Django Unchained",
+    #     "best director - motion picture": "ben affleck",
+    #     "best performance by an actress in a television series - comedy or musical": "lena dunham",
+    #     "best foreign language film": "amour",
+    #     "best performance by an actor in a supporting role in a motion picture": "christoph waltz",
+    #     "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": "maggie smith",
+    #     "best motion picture - comedy or musical": "les miserables",
+    #     "best performance by an actress in a motion picture - comedy or musical": "jennifer lawrence",
+    #     "best mini-series or motion picture made for television": "game change",
+    #     "best original score - motion picture": "life of pi",
+    #     "best performance by an actress in a television series - drama": "claire danes",
+    #     "best performance by an actress in a motion picture - drama": "jessica chastain",
+    #     "cecil b. demille award": "jodie foster",
+    #     "best performance by an actor in a motion picture - comedy or musical": "hugh jackman",
+    #     "best motion picture - drama": "argo",
+    #     "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": "ed harris",
+    #     "best performance by an actress in a supporting role in a motion picture": "anne hathaway",
+    #     "best television series - drama": "homeland",
+    #     "best performance by an actor in a mini-series or motion picture made for television": "kevin costner",
+    #     "best performance by an actress in a mini-series or motion picture made for television": "julianne moore",
+    #     "best animated feature film": "brave",
+    #     "best original song - motion picture": "skyfall",
+    #     "best performance by an actor in a motion picture - drama": "daniel day-lewis",
+    #     "best television series - comedy or musical": "girls",
+    #     "best performance by an actor in a television series - drama": "damian lewis",
+    #     "best performance by an actor in a television series - comedy or musical": "don cheadle"
+    # }
+
 
     '''Winners is a dictionary with the hard coded award
     names as keys, and each entry containing a single string.
@@ -632,7 +674,6 @@ def get_winner(year):
         "best performance by an actor in a television series - drama": "damian lewis",
         "best performance by an actor in a television series - comedy or musical": "don cheadle"
     }
-
 
 def merge_keys_winner(ne, award_to_person=True):
     result_dict = {}
