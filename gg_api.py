@@ -5,7 +5,6 @@ from nltk.tree import Tree
 import json
 from collections import defaultdict
 from datetime import datetime, timedelta
-from imdb import IMDb, IMDbError
 import unicodedata
 import re
 import time
@@ -74,90 +73,103 @@ OFFICIAL_AWARDS_1819 = ['best motion picture - drama', 'best motion picture - co
 
 # Checks/Incorrects for 2013
 awards_regex = {
-    'best motion picture - drama': r"^(?=.*\bbest\b)(?=.*\bdrama\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    'best motion picture - comedy or musical': r"^(?=.*\bbest\b)(?=.*\b(comedy|musical)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|drama).)*$",
-    # # Incorrect (Came fourth after GoldenGlobes, Jennifer Lawrence, and Julianne Moore) - Second time, nothing came up
-    'best performance by an actress in a motion picture - drama': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bdrama\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actor in a motion picture - drama': r"^(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\bdrama\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actress in a motion picture - comedy or musical': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bcomedy\b)(?=.*\bmusical\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-
-    'best performance by an actor in a motion picture - comedy or musical': r"^(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\bcomedy\b)(?=.*\bmusical\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actress in a supporting role in any motion picture': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bsupporting\b)(?=.*\b\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actor in a supporting role in any motion picture': r"^(?=.*\b(best|win.*)\b)(?=.*\bactor\b)(?=.*\b(support.*|role)\b)(?=.*\b\b)(?=.*\b(movie|motion)\b)^((?!television|tv|TV).)*$",
-    'best director - motion picture': r"^(?=.*\bbest\b)(?=.*\bdirector\b)(?=.*\b\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best screenplay - motion picture': r"^(?=.*\bbest\b)(?=.*\bscreenplay\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # # CHECK (Brave)
-    'best motion picture - animated': r"^(?=.*\bbest\b)(?=.*\b(animat.*)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # Incorrect (the people came up, but not the movie 'Amour' itself)
-    'best motion picture - foreign language': r"^(?=.*\bbest\b)(?=.*\b(foreign|language)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # Incorrect (but not by much, will work once only considers name)
-    'best original score - motion picture': r"^(?=.*\bbest\b)(?=.*\b(original score)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # CHECK (Skyfall - once names and golden globes are taken out)
-    'best original song - motion picture': r"^(?=.*\bbest\b)(?=.*\b(original song)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # CHECK (ONCE GOLDENGLOBES IS TAKEN OUT) (Second time nothing came up)
-    'best television series - drama': r"^(?=.*\bbest\b)(?=.*\bdrama\b)(?=.*\b(television|tv|TV)\b)^((?!movie|motion|picture|comedy|musical).)*$",
-    # CHECK (Once golden globes and people are taken out) - Doesn't come up on the second go around
-    'best television series - comedy or musical': r"^(?=.*\bbest\b)(?=.*\b(comedy|musical)\b)(?=.*\b(television|tv|TV)\b)^((?!movie|motion|picture|drama).)*$",
-    # Incorrect (Didn't come up, very low frequencies all around)
-    'best television limited series or motion picture made for television': r"^(?=.*\bbest\b)(?=.*\b(tv|television)\b)(?=.*\b(mini|limited|motion|picture|series|movie)\b)^((?!drama).)*$",
-    'best performance by an actress in a limited series or a motion picture made for television': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\b(tv|television)\b)(?=.*\b(mini|limited|motion|picture|series)\b)^((?!drama).)*$",
-    # # Incorrect (nothing came up)
-    'best performance by an actor in a limited series or a motion picture made for television': r"^(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\b(tv|television)\b)(?=.*\b(limited|motion|picture|series)\b).*$",
-    # # Incorrect (nothing came up)
-    'best performance by an actress in a television series - drama': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    # # CHECK (Once only names are considered) - Close tie on second run (Damien Lewis)
-    'best performance by an actor in a television series - drama': r"^(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    'best performance by an actress in a television series - comedy or musical': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    'best performance by an actor in a television series - comedy or musical': r"^(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    'best performance by an actress in a supporting role in a series, limited series or motion picture made for television': r"^(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\b(support.*|role)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion|picture)\b)(?=.*\b(mini|limited|series)\b)^((?!drama).)*$",
-    'best performance by an actor in a supporting role in a series, limited series or motion picture made for television': r"^(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\b(support.*|role)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion|picture)\b)(?=.*\b(mini|limited|series)\b)^((?!drama).)*$",
+    'best motion picture - drama': r"^(?=.*\bdrama\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best motion picture - comedy or musical': r"^(?=.*\b(comedy|musical)\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best performance by an actress in a motion picture - drama': r"^(?=.*\bactress\b)(?=.*\bdrama\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
+    'best performance by an actor in a motion picture - drama': r"^(?=.*\bactor\b)(?=.*\bdrama\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
+    'best performance by an actress in a motion picture - comedy or musical': r"^(?=.*\bactress\b)(?=.*\bcomedy\b)(?=.*\bmusical\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
+    'best performance by an actor in a motion picture - comedy or musical': r"^(?=.*\bactor\b)(?=.*\bcomedy\b)(?=.*\bmusical\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
+    'best performance by an actress in a supporting role in any motion picture': r"^(?=.*\bactress\b)(?=.*\bsupporting\b)(?=.*\b\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
+    'best performance by an actor in a supporting role in any motion picture': r"^(?=.*\bactor\b)(?=.*\b(supporting|role)\b)(?=.*\b\b)(?=.*\b(movie|motion)\b).*$",
+    'best director - motion picture': r"^(?=.*\bdirector\b)(?=.*\b\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
+    'best screenplay - motion picture': r"^(?=.*\bscreenplay\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best motion picture - animated': r"^(?=.*\b(animated)\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best motion picture - foreign language': r"^(?=.*\b(foreign|language)\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best original score - motion picture': r"^(?=.*\b(original score)\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best original song - motion picture': r"^(?=.*\b(original song)\b)(?=.*\b(motion|picture|movie)\b).*$",
+    'best television series - drama': r"^(?=.*\bdrama\b)(?=.*\b(television|tv|TV)\b).*$",
+    'best television series - comedy or musical': r"^(?=.*\b(comedy|musical)\b)(?=.*\b(television|tv|TV)\b).*$",
+    'best television limited series or motion picture made for television': r"^(?=.*\b(tv|television)\b)(?=.*\b(mini|limited|motion|picture|series|movie)\b).*$",
+    'best performance by an actress in a limited series or a motion picture made for television': r"^(?=.*\bactress\b)(?=.*\b(tv|television)\b)(?=.*\b(mini|limited|motion|picture|series)\b).*$",
+    'best performance by an actor in a limited series or a motion picture made for television': r"^(?=.*\bactor\b)(?=.*\b(tv|television)\b)(?=.*\b(limited|motion|picture|series)\b).*$",
+    'best performance by an actress in a television series - drama': r"^(?=.*\bactress\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
+    'best performance by an actor in a television series - drama': r"^(?=.*\bactor\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
+    'best performance by an actress in a television series - comedy or musical': r"^(?=.*\bactress\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
+    'best performance by an actor in a television series - comedy or musical': r"^(?=.*\bactor\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
+    'best performance by an actress in a supporting role in a series, limited series or motion picture made for television': r"^(?=.*\bactress\b)(?=.*\b(support.*|role)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion|picture)\b)(?=.*\b(mini|limited|series)\b).*$",
+    'best performance by an actor in a supporting role in a series, limited series or motion picture made for television': r"^(?=.*\bactor\b)(?=.*\b(support.*|role)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion|picture)\b)(?=.*\b(mini|limited|series)\b).*$",
     'cecil b. demille award': r"^(?=.*\bcecil\b)(?=.*\bdemille\b)(?=.*\b\b)(?=.*\baward\b).*$"
 }
 
 
-presenters_regex = {
-    'best motion picture - drama': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bdrama\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    'best motion picture - comedy or musical': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(comedy|musical)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|drama).)*$",
-    # # Incorrect (Came fourth after GoldenGlobes, Jennifer Lawrence, and Julianne Moore) - Second time, nothing came up
-    'best performance by an actress in a motion picture - drama': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bdrama\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actor in a motion picture - drama': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\bdrama\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actress in a motion picture - comedy or musical': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bcomedy\b)(?=.*\bmusical\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
 
-    'best performance by an actor in a motion picture - comedy or musical': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\bcomedy\b)(?=.*\bmusical\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actress in a supporting role in any motion picture': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bsupporting\b)(?=.*\b\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best performance by an actor in a supporting role in any motion picture': r"^(?=.*\bpresent.*\b)(?=.*\b(best|win.*)\b)(?=.*\bactor\b)(?=.*\b(support.*|role)\b)(?=.*\b\b)(?=.*\b(movie|motion)\b)^((?!television|tv|TV).)*$",
-    'best director - motion picture': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bdirector\b)(?=.*\b\b)(?=.*\bmotion\b)(?=.*\bpicture\b).*$",
-    'best screenplay - motion picture': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bscreenplay\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # # CHECK (Brave)
-    'best motion picture - animated': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(animat.*)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # Incorrect (the people came up, but not the movie 'Amour' itself)
-    'best motion picture - foreign language': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(foreign|language)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # Incorrect (but not by much, will work once only considers name)
-    'best original score - motion picture': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(original score)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # CHECK (Skyfall - once names and golden globes are taken out)
-    'best original song - motion picture': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(original song)\b)(?=.*\b(motion|picture|movie)\b)^((?!television|tv|TV|comedy|musical).)*$",
-    # CHECK (ONCE GOLDENGLOBES IS TAKEN OUT) (Second time nothing came up)
-    'best television series - drama': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bdrama\b)(?=.*\b(television|tv|TV)\b)^((?!movie|motion|picture|comedy|musical).)*$",
-    # CHECK (Once golden globes and people are taken out) - Doesn't come up on the second go around
-    'best television series - comedy or musical': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(comedy|musical)\b)(?=.*\b(television|tv|TV)\b)^((?!movie|motion|picture|drama).)*$",
-    # Incorrect (Didn't come up, very low frequencies all around)
-    'best television limited series or motion picture made for television': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\b(tv|television)\b)(?=.*\b(mini|limited|motion|picture|series|movie)\b)^((?!drama).)*$",
-    'best performance by an actress in a limited series or a motion picture made for television': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\b(tv|television)\b)(?=.*\b(mini|limited|motion|picture|series)\b)^((?!drama).)*$",
-    # # Incorrect (nothing came up)
-    'best performance by an actor in a limited series or a motion picture made for television': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\b(tv|television)\b)(?=.*\b(limited|motion|picture|series)\b).*$",
-    # # Incorrect (nothing came up)
-    'best performance by an actress in a television series - drama': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    # # CHECK (Once only names are considered) - Close tie on second run (Damien Lewis)
-    'best performance by an actor in a television series - drama': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    'best performance by an actress in a television series - comedy or musical': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    'best performance by an actor in a television series - comedy or musical': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$",
-    'best performance by an actress in a supporting role in a series, limited series or motion picture made for television': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactress\b)(?=.*\b(support.*|role)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion|picture)\b)(?=.*\b(mini|limited|series)\b)^((?!drama).)*$",
-    'best performance by an actor in a supporting role in a series, limited series or motion picture made for television': r"^(?=.*\bpresent.*\b)(?=.*\bbest\b)(?=.*\bactor\b)(?=.*\b(support.*|role)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion|picture)\b)(?=.*\b(mini|limited|series)\b)^((?!drama).)*$",
-    'cecil b. demille award': r"^(?=.*\bpresent.*\b)(?=.*\bcecil\b)(?=.*\bdemille\b)(?=.*\b\b)(?=.*\baward\b).*$"
+winners_regex = {
+    r"^(?=.*\b(drama)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - drama'],
+    r"^(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\bdrama\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a motion picture - drama', 'best performance by an actor in a motion picture - drama'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a motion picture - comedy or musical', 'best performance by an actor in a motion picture - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(support.*)\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a supporting role in any motion picture', 'best performance by an actor in a supporting role in any motion picture'],
+    r"^(?=.*\b(director|screenplay)\b)(?=.*\b(motion picture|movie)\b).*$": ['best director - motion picture', 'best screenplay - motion picture'],
+    r"^(?=.*\b(animated)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - animated'],
+    r"^(?=.*\b(foreign language|foreign)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - foreign language'],
+    r"^(?=.*\b(original)\b)(?=.*\b(score)\b)(?=.*\b(motion|picture|movie)\b).*$": ['best original score - motion picture'],
+    r"^(?=.*\b(original)\b)(?=.*\b(song)\b)(?=.*\b(motion|picture|movie)\b).*$": ['best original song - motion picture'],
+    r"^(?=.*\b(drama)\b)(?=.*\b(television|tv|series)\b).*$": ['best television series - drama'],
+    r"^(?=.*\b(comedy|musical)\b)(?=.*\b(television|tv|series)\b).*$": ['best television series - comedy or musical'],
+    r"^(?=.*\b(tv|television)\b)(?=.*\b(limited series|motion picture|movie)\b).*$": ['best television limited series or motion picture made for television'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(tv|television)\b)(?=.*\b(limited series|motion picture|movie)\b).*$": ['best performance by an actress in a limited series or a motion picture made for television', 'best performance by an actor in a limited series or a motion picture made for television'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$": ['best performance by an actress in a television series - drama', 'best performance by an actor in a television series - drama'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$": ['best performance by an actress in a television series - comedy or musical', 'best performance by an actor in a television series - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(support.*)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion picture|movie|limited series)\b).*$": ['best performance by an actress in a supporting role in a series, limited series or motion picture made for television', 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'],
+    r"^(?=.*\b(cecil|demille)\b).*$": ['cecil b. demille award']
+}
+
+presenters_regex = {
+    r"^(?=.*\b(drama)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - drama'],
+    r"^(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\bdrama\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a motion picture - drama', 'best performance by an actor in a motion picture - drama'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a motion picture - comedy or musical', 'best performance by an actor in a motion picture - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(support.*)\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a supporting role in any motion picture', 'best performance by an actor in a supporting role in any motion picture'],
+    r"^(?=.*\b(director|screenplay)\b)(?=.*\b(motion picture|movie)\b).*$": ['best director - motion picture', 'best screenplay - motion picture'],
+    r"^(?=.*\b(animated)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - animated'],
+    r"^(?=.*\b(foreign language|foreign)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - foreign language'],
+    r"^(?=.*\b(original)\b)(?=.*\b(score)\b)(?=.*\b(motion|picture|movie)\b).*$": ['best original score - motion picture'],
+    r"^(?=.*\b(original)\b)(?=.*\b(song)\b)(?=.*\b(motion|picture|movie)\b).*$": ['best original song - motion picture'],
+    r"^(?=.*\b(drama)\b)(?=.*\b(television|tv|series)\b).*$": ['best television series - drama'],
+    r"^(?=.*\b(comedy|musical)\b)(?=.*\b(television|tv|series)\b).*$": ['best television series - comedy or musical'],
+    r"^(?=.*\b(tv|television)\b)(?=.*\b(limited series|motion picture|movie)\b).*$": ['best television limited series or motion picture made for television'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(tv|television)\b)(?=.*\b(limited series|motion picture|movie)\b).*$": ['best performance by an actress in a limited series or a motion picture made for television', 'best performance by an actor in a limited series or a motion picture made for television'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$": ['best performance by an actress in a television series - drama', 'best performance by an actor in a television series - drama'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$": ['best performance by an actress in a television series - comedy or musical', 'best performance by an actor in a television series - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(support.*)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion picture|movie|limited series)\b).*$": ['best performance by an actress in a supporting role in a series, limited series or motion picture made for television', 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'],
+    r"^(?=.*\b(cecil|demille)\b).*$": ['cecil b. demille award']
+}
+
+nominees_regex = {
+    r"^(?=.*\b(drama)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - drama'],
+    r"^(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\bdrama\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a motion picture - drama', 'best performance by an actor in a motion picture - drama'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(comedy|musical)\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a motion picture - comedy or musical', 'best performance by an actor in a motion picture - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(support.*)\b)(?=.*\b(motion picture|movie)\b).*$": ['best performance by an actress in a supporting role in any motion picture', 'best performance by an actor in a supporting role in any motion picture'],
+    r"^(?=.*\b(director|screenplay)\b)(?=.*\b(motion picture|movie)\b).*$": ['best director - motion picture', 'best screenplay - motion picture'],
+    r"^(?=.*\b(animated)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - animated'],
+    r"^(?=.*\b(foreign language|foreign)\b)(?=.*\b(motion picture|movie)\b).*$": ['best motion picture - foreign language'],
+    r"^(?=.*\b(original)\b)(?=.*\b(score)\b)(?=.*\b(motion|picture|movie)\b).*$": ['best original score - motion picture'],
+    r"^(?=.*\b(original)\b)(?=.*\b(song)\b)(?=.*\b(motion|picture|movie)\b).*$": ['best original song - motion picture'],
+    r"^(?=.*\b(drama)\b)(?=.*\b(television|tv|series)\b).*$": ['best television series - drama'],
+    r"^(?=.*\b(comedy|musical)\b)(?=.*\b(television|tv|series)\b).*$": ['best television series - comedy or musical'],
+    r"^(?=.*\b(tv|television)\b)(?=.*\b(limited series|motion picture|movie)\b).*$": ['best television limited series or motion picture made for television'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(tv|television)\b)(?=.*\b(limited series|motion picture|movie)\b).*$": ['best performance by an actress in a limited series or a motion picture made for television', 'best performance by an actor in a limited series or a motion picture made for television'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\bdrama\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$": ['best performance by an actress in a television series - drama', 'best performance by an actor in a television series - drama'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(comedy|musical)\b)(?=.*\b(tv|television)\b)(?=.*\b(series)\b).*$": ['best performance by an actress in a television series - comedy or musical', 'best performance by an actor in a television series - comedy or musical'],
+    r"^(?=.*\b(actor|actress)\b)(?=.*\b(support.*)\b)(?=.*\b(tv|television)\b)(?=.*\b(motion picture|movie|limited series)\b).*$": ['best performance by an actress in a supporting role in a series, limited series or motion picture made for television', 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'],
+    r"^(?=.*\b(cecil|demille)\b).*$": ['cecil b. demille award']
 }
 
 
 def get_continous_chunks(text):
+    forbidden_stop_words = ['cecil', 'cecil b', 'cecil b.', 'screenplay', 'movie', 'motion', 'picture', 'actor',
+                            'actress', 'original', 'song', 'score']
     chunked = nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(text)))
     continuous_chunk = []
     current_chunk = []
@@ -166,7 +178,7 @@ def get_continous_chunks(text):
             current_chunk.append(" ".join([token for token, pos in chunk.leaves()]))
         elif current_chunk:
             named_entity = " ".join(current_chunk)
-            if named_entity not in continuous_chunk:
+            if (named_entity not in continuous_chunk) and (named_entity.split()[0].lower() not in forbidden_stop_words):
                 continuous_chunk.append(named_entity)
                 current_chunk = []
             else:
@@ -181,39 +193,31 @@ def get_hosts(year):
     of this function or what it returns.'''
     with open('./data/gg{year}.json'.format(year=year)) as f:
         tweets = json.load(f)
-        # tweets = [json.loads(line) for line in f]
-
-        start = datetime.now()
-        pot = timedelta(seconds=300)
         named_entities = defaultdict(int)
+        ultimate_regex_ = r"^((?!rt).)*$"
+        master_regex = r"^(?!\b.*(next).*\b$)(?=.*\b(hosting)\b).*$"
+        start = datetime.now()
+        pot = timedelta(seconds=15)
         for tweet in tweets:
             if start + pot < datetime.now():
                 break
             tweet_text = tweet.get('text')
-            # print(tweet_text)
-            x = ["hosting", "hosts"]
-            y = ["next", "year"]
-            negative = True
-            for negative_pattern in y:
-                if negative_pattern not in tweet_text:
-                    pass
-                else:
-                    negative = False
-                    break
-            if negative:
-                for pattern in x:
-                    if pattern in tweet_text:
-                        tweet_named_entities = get_continous_chunks(tweet_text)
-                        for ne in tweet_named_entities:
-                            # print(ne)
-                            named_entities[ne] += 1
-                        break
 
-    print("\n\n")
-    merged = merge_keys(named_entities)
-    hosts = calculate_hosts(merged)
-    print(hosts)
-    return hosts
+            ultimate_match = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
+            if ultimate_match:
+                matches = re.findall(master_regex, tweet_text.lower(), re.MULTILINE)
+                if matches:
+                    tweet_named_entities = get_continous_chunks(tweet_text)
+                    for ne in tweet_named_entities:
+                        named_entities[ne] += 1
+
+        print("\n\n")
+        merged = merge_keys(named_entities)
+        show_freq_hosts(merged)
+        hosts = calculate_hosts(merged)
+        print(hosts)
+        return hosts
+
 
 
 # This function is to print out the most common named entities
@@ -267,7 +271,6 @@ def merge_keys(ne):
 def calculate_hosts(ne):
     hosts = []
     max_value_key = max(ne, key=ne.get)
-
     hosts.append(max_value_key)
     for k in ne:
         if k != max_value_key and (ne.get(k) >= (ne[max_value_key] * .7)):
@@ -279,10 +282,12 @@ def calculate_hosts(ne):
 def get_tweets(year):
     tweets = []
     try:
-        with open('gg' + str(year) + '.json', 'r', encoding='utf8') as f:
+
+        with open('./data/gg{year}.json'.format(year=year)) as f:
             tweets = json.load(f)
     except json.JSONDecodeError:
-        with open('gg' + str(year) + '.json', 'r', encoding='utf8') as f:
+        with open('./data/gg{year}.json'.format(year=year)) as f:
+
             for line in f:
                 tweets.append(json.loads(line))
     return tweets
@@ -422,6 +427,8 @@ def get_awards(year):
         cutoff = .5 * highest
 
     awardds = [awardd[0] for awardd in new_d if awardd[0] and awardd[1] >= cutoff]
+
+    print(awardds)
     print(len(awardds))
     print('Finished in', (time.time() - start))
     return awardds
@@ -432,68 +439,86 @@ def get_nominees(year):
     names as keys, and each entry a list of strings. Do NOT change
     the name of this function or what it returns.'''
 
-    # Go through each tweet. For each tweet look for each award.
-    # Build a dictionary for each award.
-    # Frequency map similar to hosts for each award.
-    # Then take the most frequent named entities from each award and
-    # put it in a list as a value for they key of the award
-    return {
-        "best screenplay - motion picture": ["zero dark thirty", "lincoln", "silver linings playbook", "argo"],
-        "best director - motion picture": ["kathryn bigelow", "ang lee", "steven spielberg", "quentin tarantino"],
-        "best performance by an actress in a television series - comedy or musical": ["zooey deschanel", "tina fey",
-                                                                                      "julia louis-dreyfus",
-                                                                                      "amy poehler"],
-        "best foreign language film": ["the intouchables", "kon tiki", "a royal affair", "rust and bone"],
-        "best performance by an actor in a supporting role in a motion picture": ["alan arkin", "leonardo dicaprio",
-                                                                                  "philip seymour hoffman",
-                                                                                  "tommy lee jones"],
-        "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": [
-            "hayden panettiere", "archie panjabi", "sarah paulson", "sofia vergara"],
-        "best motion picture - comedy or musical": ["the best exotic marigold hotel", "moonrise kingdom",
-                                                    "salmon fishing in the yemen", "silver linings playbook"],
-        "best performance by an actress in a motion picture - comedy or musical": ["emily blunt", "judi dench",
-                                                                                   "maggie smith", "meryl streep"],
-        "best mini-series or motion picture made for television": ["the girl", "hatfields & mccoys", "the hour",
-                                                                   "political animals"],
-        "best original score - motion picture": ["argo", "anna karenina", "cloud atlas", "lincoln"],
-        "best performance by an actress in a television series - drama": ["connie britton", "glenn close",
-                                                                          "michelle dockery", "julianna margulies"],
-        "best performance by an actress in a motion picture - drama": ["marion cotillard", "sally field",
-                                                                       "helen mirren", "naomi watts", "rachel weisz"],
-        "cecil b. demille award": [],
-        "best performance by an actor in a motion picture - comedy or musical": ["jack black", "bradley cooper",
-                                                                                 "ewan mcgregor", "bill murray"],
-        "best motion picture - drama": ["django unchained", "life of pi", "lincoln", "zero dark thirty"],
-        "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": [
-            "max greenfield", "danny huston", "mandy patinkin", "eric stonestreet"],
-        "best performance by an actress in a supporting role in a motion picture": ["amy adams", "sally field",
-                                                                                    "helen hunt", "nicole kidman"],
-        "best television series - drama": ["boardwalk empire", "breaking bad", "downton abbey (masterpiece)",
-                                           "the newsroom"],
-        "best performance by an actor in a mini-series or motion picture made for television": ["benedict cumberbatch",
-                                                                                                "woody harrelson",
-                                                                                                "toby jones",
-                                                                                                "clive owen"],
-        "best performance by an actress in a mini-series or motion picture made for television": ["nicole kidman",
-                                                                                                  "jessica lange",
-                                                                                                  "sienna miller",
-                                                                                                  "sigourney weaver"],
-        "best animated feature film": ["frankenweenie", "hotel transylvania", "rise of the guardians",
-                                       "wreck-it ralph"],
-        "best original song - motion picture": ["act of valor", "stand up guys", "the hunger games", "les miserables"],
-        "best performance by an actor in a motion picture - drama": ["richard gere", "john hawkes", "joaquin phoenix",
-                                                                     "denzel washington"],
-        "best television series - comedy or musical": ["the big bang theory", "episodes", "modern family", "smash"],
-        "best performance by an actor in a television series - drama": ["steve buscemi", "bryan cranston",
-                                                                        "jeff daniels", "jon hamm"],
-        "best performance by an actor in a television series - comedy or musical": ["alec baldwin", "louis c.k.",
-                                                                                    "matt leblanc", "jim parsons"]
+
+    awards_mapped_to_entities = {
+        'best motion picture - drama': defaultdict(int),
+        'best motion picture - comedy or musical': defaultdict(int),
+        'best performance by an actress in a motion picture - drama': defaultdict(int),
+        'best performance by an actor in a motion picture - drama': defaultdict(int),
+        'best performance by an actress in a motion picture - comedy or musical': defaultdict(int),
+        'best performance by an actor in a motion picture - comedy or musical': defaultdict(int),
+        'best performance by an actress in a supporting role in any motion picture': defaultdict(int),
+        'best performance by an actor in a supporting role in any motion picture': defaultdict(int),
+        'best director - motion picture': defaultdict(int),
+        'best screenplay - motion picture': defaultdict(int),
+        'best motion picture - animated': defaultdict(int),
+        'best motion picture - foreign language': defaultdict(int),
+        'best original score - motion picture': defaultdict(int),
+        'best original song - motion picture': defaultdict(int),
+        'best television series - drama': defaultdict(int),
+        'best television series - comedy or musical': defaultdict(int),
+        'best television limited series or motion picture made for television': defaultdict(int),
+        'best performance by an actress in a limited series or a motion picture made for television': defaultdict(int),
+        'best performance by an actor in a limited series or a motion picture made for television': defaultdict(int),
+        'best performance by an actress in a television series - drama': defaultdict(int),
+        'best performance by an actor in a television series - drama': defaultdict(int),
+        'best performance by an actress in a television series - comedy or musical': defaultdict(int),
+        'best performance by an actor in a television series - comedy or musical': defaultdict(int),
+        'best performance by an actress in a supporting role in a series, limited series or motion picture made for television': defaultdict(
+            int),
+        'best performance by an actor in a supporting role in a series, limited series or motion picture made for television': defaultdict(
+            int),
+        'cecil b. demille award': defaultdict(int)
     }
-    # Your code here
 
+    year_minus_one = int(year) - 1
+    year_minus_two = int(year) - 2
+    with open('./data/gg{year}.json'.format(year=year)) as twitter, open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
+        imdb_db_1 = json.load(imdb_1)
+        imdb_db_2 = json.load(imdb_2)
+        imdb_total = [imdb_db_1, imdb_db_2]
+        tweets = json.load(twitter)
 
+        filtered_tweets = []
+        ultimate_regex_ = r"^((?!(rt|present.*|host.*)).)*$"
+        # ultimate_regex_2 = r"^(?=.*\b(nomin.*)\b).*$"
+        master_regex_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        master_regex_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
+        master_regex_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
+        master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
+        start_begin = datetime.now()
+        pot_begin = timedelta(seconds=45)
+        for tweet in tweets:
+            if start_begin + pot_begin < datetime.now():
+                break
+            tweet_text = tweet.get('text')
+            ultimate_match_ = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
+            if ultimate_match_:
+                # ultimate_match_2 = re.findall(ultimate_regex_2, tweet_text.lower(), re.MULTILINE)
+                # if ultimate_match_2:
+                matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
+                matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
+                matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
+                matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
+                if matches_1 or matches_2 or matches_3 or matches_4:
+                    filtered_tweets.append(tweet_text)
 
-sub_tweet_data = []
+        start = datetime.now()
+        pot = timedelta(seconds=60)
+        for sub_tweet in filtered_tweets:
+            if start + pot < datetime.now():
+                break
+            for regex_ in nominees_regex:
+                matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
+                if matches:
+                    for award in nominees_regex.get(regex_):
+                        tweet_named_entities = get_continous_chunks(sub_tweet)
+                        for ne in tweet_named_entities:
+                            awards_mapped_to_entities.get(award)[ne] += 1
+
+        result = award_nominee_master(awards=awards_mapped_to_entities, db=imdb_total)
+        print(result)
+        return result
 
 
 def get_winner(year):
@@ -504,7 +529,7 @@ def get_winner(year):
     # but the values are frequencyMap (similar to hosts).
     # So it's a dict nested in a dict
 
-    awards_mapped_to_entities = {
+    awards_mapped_to_winners = {
         'best motion picture - drama': defaultdict(int),
         'best motion picture - comedy or musical': defaultdict(int),
         'best performance by an actress in a motion picture - drama': defaultdict(int),
@@ -543,24 +568,41 @@ def get_winner(year):
         imdb_db_2 = json.load(imdb_2)
         imdb_total = [imdb_db_1, imdb_db_2]
 
-        start = datetime.now()
-        pot = timedelta(seconds=300)
+        filtered_tweets = []
+        ultimate_regex_ = r"^((?!(rt|didn't|did not|lost)).)*$"
+        master_regex_1 = r"^(?=.*\b(best)\b)(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        master_regex_2 = r"^(?=.*\b(best)\b)(?=.*\b(wins|won|nominated|nominees|present|presenters)\b)(?=.*\b(actor|actress|director)\b).*$"
+        master_regex_3 = r"^(?=.*\b(best)\b)(?=.*\b(support.*)\b)(?=.*\b(actor|actress)\b).*$"
+        master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
+        start_begin = datetime.now()
+        pot_begin = timedelta(seconds=90)
         for tweet in tweets:
-            if start + pot < datetime.now():
+            if start_begin + pot_begin < datetime.now():
                 break
             tweet_text = tweet.get('text')
-            sub_tweet_data.append(tweet_text)
-            for award in awards_regex:
-                regex_ = awards_regex.get(award)
-                matches = re.findall(regex_, tweet_text.lower(), re.MULTILINE)
+            ultimate_match = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
+            if ultimate_match:
+                matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
+                matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
+                matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
+                matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
+                if matches_1 or matches_2 or matches_3 or matches_4:
+                    filtered_tweets.append(tweet_text)
+
+        start = datetime.now()
+        pot = timedelta(seconds=90)
+        for sub_tweet in filtered_tweets:
+            if start + pot < datetime.now():
+                break
+            for regex_ in winners_regex:
+                matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
                 if matches:
-                    tweet_named_entities = get_continous_chunks(tweet_text)
-                    for ne in tweet_named_entities:
-                        awards_mapped_to_entities.get(award)[ne] += 1
+                    for award in winners_regex.get(regex_):
+                        tweet_named_entities = get_continous_chunks(sub_tweet)
+                        for ne in tweet_named_entities:
+                            awards_mapped_to_winners.get(award)[ne] += 1
 
-    print("\n\n")
-
-    result = award_winner_master(awards=awards_mapped_to_entities, db=imdb_total)
+    result = award_winner_master(awards=awards_mapped_to_winners, db=imdb_total)
     print(result)
     return result
 
@@ -599,6 +641,39 @@ def get_winner(year):
     #     "best performance by an actor in a television series - comedy or musical": "don cheadle"
     # }
 
+
+    '''Winners is a dictionary with the hard coded award
+    names as keys, and each entry containing a single string.
+    Do NOT change the name of this function or what it returns.'''
+    # Your code here
+    return {
+        "best screenplay - motion picture": "Django Unchained",
+        "best director - motion picture": "ben affleck",
+        "best performance by an actress in a television series - comedy or musical": "lena dunham",
+        "best foreign language film": "amour",
+        "best performance by an actor in a supporting role in a motion picture": "christoph waltz",
+        "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": "maggie smith",
+        "best motion picture - comedy or musical": "les miserables",
+        "best performance by an actress in a motion picture - comedy or musical": "jennifer lawrence",
+        "best mini-series or motion picture made for television": "game change",
+        "best original score - motion picture": "life of pi",
+        "best performance by an actress in a television series - drama": "claire danes",
+        "best performance by an actress in a motion picture - drama": "jessica chastain",
+        "cecil b. demille award": "jodie foster",
+        "best performance by an actor in a motion picture - comedy or musical": "hugh jackman",
+        "best motion picture - drama": "argo",
+        "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": "ed harris",
+        "best performance by an actress in a supporting role in a motion picture": "anne hathaway",
+        "best television series - drama": "homeland",
+        "best performance by an actor in a mini-series or motion picture made for television": "kevin costner",
+        "best performance by an actress in a mini-series or motion picture made for television": "julianne moore",
+        "best animated feature film": "brave",
+        "best original song - motion picture": "skyfall",
+        "best performance by an actor in a motion picture - drama": "daniel day-lewis",
+        "best television series - comedy or musical": "girls",
+        "best performance by an actor in a television series - drama": "damian lewis",
+        "best performance by an actor in a television series - comedy or musical": "don cheadle"
+    }
 
 def merge_keys_winner(ne, award_to_person=True):
     result_dict = {}
@@ -736,7 +811,8 @@ def remove_names(entities):
 
 
 def forbidden_words(entity):
-    forb = ['golden', 'motion', 'picture', 'drama', 'comedy', 'actor', 'actress', 'globe', 'best', 'musical', 'live']
+    forb = ['golden', 'motion', 'picture', 'drama', 'comedy', 'actor', 'actress', 'globe', 'best', 'musical', 'live',
+            'movie', 'tv', 'television', ]
     for bidden in forb:
         if bidden in entity.lower():
             return True
@@ -751,19 +827,23 @@ def is_movie(entities, db):
         for k, v in db[0].items():
             if (entity.lower() in [x.lower() for x in v]) and (entity.lower() not in already_added_movies):
                 result_dict[entity] = val
+                already_added_movies.append(entity)
                 count += 1
-            if count >= 5:
+                break
+            if count >= 3:
                 return result_dict
 
     return result_dict
 
 
-def is_full_name(entity):
-    if len(entity) == 2:
-        if entity[0] in (male_names or female_names):
-            return True
-    else:
-        return False
+def full_names_only(entities):
+    result_dict = defaultdict(int)
+    freq = nltk.FreqDist(entities)
+    for entity, val in freq.most_common():
+        entity_split = entity.split()
+        if len(entity_split) == 2 and (entity_split[0] in (male_names or female_names)):
+                result_dict[entity] = val
+    return result_dict
 
 
 def strip_accents(text):
@@ -815,58 +895,93 @@ def get_presenters(year):
         'cecil b. demille award': defaultdict(int)
     }
 
+
     year_minus_one = int(year) - 1
     year_minus_two = int(year) - 2
-    with open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
-        imdb_db_1 = json.load(imdb_1)
-        imdb_db_2 = json.load(imdb_2)
+    with open('./data/gg{year}.json'.format(year=year)) as twitter, open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
+        imdb_db_1 = imdb_1
+        imdb_db_2 = imdb_2
         imdb_total = [imdb_db_1, imdb_db_2]
-        for tweet_text in sub_tweet_data:
-            print(tweet_text)
-            for award in presenters_regex:
-                regex_ = presenters_regex.get(award)
-                matches = re.findall(regex_, tweet_text.lower(), re.MULTILINE)
-                if matches:
-                    tweet_named_entities = get_continous_chunks(tweet_text)
-                    for ne in tweet_named_entities:
-                        awards_mapped_to_entities.get(award)[ne] += 1
-        for key, val in awards_mapped_to_entities.items():
-            print("{award}: ".format(award=key))
-            show_freq_hosts(val)
+        tweets = json.load(twitter)
 
-    # Your code here
-    return {
-        "best screenplay - motion picture": ["robert pattinson", "amanda seyfried"],
-        "best director - motion picture": ["halle berry"],
-        "best performance by an actress in a television series - comedy or musical": ["aziz ansari", "jason bateman"],
-        "best foreign language film": ["arnold schwarzenegger", "sylvester stallone"],
-        "best performance by an actor in a supporting role in a motion picture": ["bradley cooper", "kate hudson"],
-        "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": [
-            "dennis quaid", "kerry washington"],
-        "best motion picture - comedy or musical": ["dustin hoffman"],
-        "best performance by an actress in a motion picture - comedy or musical": ["will ferrell", "kristen wiig"],
-        "best mini-series or motion picture made for television": ["don cheadle", "eva longoria"],
-        "best original score - motion picture": ["jennifer lopez", "jason statham"],
-        "best performance by an actress in a television series - drama": ["nathan fillion", "lea michele"],
-        "best performance by an actress in a motion picture - drama": ["george clooney"],
-        "cecil b. demille award": ["robert downey, jr."],
-        "best performance by an actor in a motion picture - comedy or musical": ["jennifer garner"],
-        "best motion picture - drama": ["julia roberts"],
-        "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": [
-            "kristen bell", "john krasinski"],
-        "best performance by an actress in a supporting role in a motion picture": ["megan fox", "jonah hill"],
-        "best television series - drama": ["salma hayek", "paul rudd"],
-        "best performance by an actor in a mini-series or motion picture made for television": ["jessica alba",
-                                                                                                "kiefer sutherland"],
-        "best performance by an actress in a mini-series or motion picture made for television": ["don cheadle",
-                                                                                                  "eva longoria"],
-        "best animated feature film": ["sacha baron cohen"],
-        "best original song - motion picture": ["jennifer lopez", "jason statham"],
-        "best performance by an actor in a motion picture - drama": ["george clooney"],
-        "best television series - comedy or musical": ["jimmy fallon", "jay leno"],
-        "best performance by an actor in a television series - drama": ["salma hayek", "paul rudd"],
-        "best performance by an actor in a television series - comedy or musical": ["lucy liu", "debra messing"]
-    }
+        filtered_tweets = []
+        ultimate_regex_ = r"^((?!(wins|won|host.*)).)*$"
+        ultimate_regex_2 = r"^(?=.*\b(present.*)\b).*$"
+        master_regex_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        master_regex_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
+        master_regex_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
+        master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
+        start_begin = datetime.now()
+        pot_begin = timedelta(seconds=45)
+        for tweet in tweets:
+            if start_begin + pot_begin < datetime.now():
+                break
+            tweet_text = tweet.get('text')
+            ultimate_match_ = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
+            if ultimate_match_:
+                ultimate_match_2 = re.findall(ultimate_regex_2, tweet_text.lower(), re.MULTILINE)
+                if ultimate_match_2:
+                    matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
+                    matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
+                    matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
+                    matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
+                    if matches_1 or matches_2 or matches_3 or matches_4:
+                        filtered_tweets.append(tweet_text)
+
+        start = datetime.now()
+        pot = timedelta(seconds=45)
+        for sub_tweet in filtered_tweets:
+            if start + pot < datetime.now():
+                break
+            for regex_ in presenters_regex:
+                matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
+                if matches:
+                    for award in presenters_regex.get(regex_):
+                        tweet_named_entities = get_continous_chunks(sub_tweet)
+                        for ne in tweet_named_entities:
+                            awards_mapped_to_entities.get(award)[ne] += 1
+
+        result = award_present_master(awards=awards_mapped_to_entities, db=imdb_total)
+        print(result)
+        return result
+
+        # for key, val in awards_mapped_to_entities.items():
+        #     print("{award}: ".format(award=key))
+        #     show_freq_hosts(val)
+
+        # Your code here
+        # return {
+        #     "best screenplay - motion picture": ["robert pattinson", "amanda seyfried"],
+        #     "best director - motion picture": ["halle berry"],
+        #     "best performance by an actress in a television series - comedy or musical": ["aziz ansari", "jason bateman"],
+        #     "best foreign language film": ["arnold schwarzenegger", "sylvester stallone"],
+        #     "best performance by an actor in a supporting role in a motion picture": ["bradley cooper", "kate hudson"],
+        #     "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": [
+        #         "dennis quaid", "kerry washington"],
+        #     "best motion picture - comedy or musical": ["dustin hoffman"],
+        #     "best performance by an actress in a motion picture - comedy or musical": ["will ferrell", "kristen wiig"],
+        #     "best mini-series or motion picture made for television": ["don cheadle", "eva longoria"],
+        #     "best original score - motion picture": ["jennifer lopez", "jason statham"],
+        #     "best performance by an actress in a television series - drama": ["nathan fillion", "lea michele"],
+        #     "best performance by an actress in a motion picture - drama": ["george clooney"],
+        #     "cecil b. demille award": ["robert downey, jr."],
+        #     "best performance by an actor in a motion picture - comedy or musical": ["jennifer garner"],
+        #     "best motion picture - drama": ["julia roberts"],
+        #     "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": [
+        #         "kristen bell", "john krasinski"],
+        #     "best performance by an actress in a supporting role in a motion picture": ["megan fox", "jonah hill"],
+        #     "best television series - drama": ["salma hayek", "paul rudd"],
+        #     "best performance by an actor in a mini-series or motion picture made for television": ["jessica alba",
+        #                                                                                             "kiefer sutherland"],
+        #     "best performance by an actress in a mini-series or motion picture made for television": ["don cheadle",
+        #                                                                                               "eva longoria"],
+        #     "best animated feature film": ["sacha baron cohen"],
+        #     "best original song - motion picture": ["jennifer lopez", "jason statham"],
+        #     "best performance by an actor in a motion picture - drama": ["george clooney"],
+        #     "best television series - comedy or musical": ["jimmy fallon", "jay leno"],
+        #     "best performance by an actor in a television series - drama": ["salma hayek", "paul rudd"],
+        #     "best performance by an actor in a television series - comedy or musical": ["lucy liu", "debra messing"]
+        # }
 
 
 def pre_ceremony():
@@ -885,9 +1000,11 @@ def main():
     and then run gg_api.main(). This is the second thing the TA will
     run when grading. Do NOT change the name of this function or
     what it returns.'''
-    get_winner(2013)
-    # get_presenters(2013)
+    # get_nominees(2013)
+    # get_winner(2013)
+    # get_presenters(2015)
     # get_hosts(2013)
+    get_awards(2015)
     return
 
 
@@ -951,7 +1068,10 @@ def remove_one_word_names(entities):
     max_ = max(entities, key=entities.get)
     if ' ' not in max_:
         del entities[max_]
-        max_ = max(entities, key=entities.get)
+        if entities:
+            max_ = max(entities, key=entities.get)
+        else:
+            return " "
     return max_
 
 
@@ -963,7 +1083,8 @@ def award_winner_1(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best motion picture - comedy or musical
@@ -974,7 +1095,8 @@ def award_winner_2(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best performance by an actress in a motion picture - drama
@@ -985,7 +1107,7 @@ def award_winner_3(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
@@ -997,7 +1119,7 @@ def award_winner_4(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
@@ -1009,7 +1131,7 @@ def award_winner_5(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
@@ -1021,31 +1143,33 @@ def award_winner_6(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # best performance by an actress in a supporting role in any motion picture
 def award_winner_7(entities, db):
     print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
+    print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # best performance by an actor in a supporting role in any motion picture
 def award_winner_8(entities, db):
     print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
+    print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
@@ -1056,7 +1180,8 @@ def award_winner_9(entities, db):
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     show_freq_hosts(merged)
-    return max(merged, key=merged.get)
+    max_ = max(merged, key=merged.get) if merged else " "
+    return max_
 
 
 # 'best screenplay - motion picture'
@@ -1067,7 +1192,8 @@ def award_winner_10(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best motion picture - animated
@@ -1078,7 +1204,8 @@ def award_winner_11(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best motion picture - foreign language
@@ -1089,7 +1216,8 @@ def award_winner_12(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best original score - motion picture
@@ -1100,7 +1228,8 @@ def award_winner_13(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best original song - motion picture
@@ -1111,7 +1240,8 @@ def award_winner_14(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best television series - drama
@@ -1122,7 +1252,8 @@ def award_winner_15(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best television series - comedy or musical
@@ -1133,7 +1264,8 @@ def award_winner_16(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # best television limited series or motion picture made for television
@@ -1144,7 +1276,8 @@ def award_winner_17(entities, db):
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
     show_freq_hosts(movies)
-    return max(movies, key=movies.get)
+    max_ = max(movies, key=movies.get) if movies else " "
+    return max_
 
 
 # TODO: Change to movie as winner (maybe, wait for Viktor response)
@@ -1156,7 +1289,7 @@ def award_winner_18(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
@@ -1168,7 +1301,7 @@ def award_winner_19(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
@@ -1180,7 +1313,7 @@ def award_winner_20(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
@@ -1192,7 +1325,7 @@ def award_winner_21(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
@@ -1204,7 +1337,7 @@ def award_winner_22(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
@@ -1216,31 +1349,33 @@ def award_winner_23(entities, db):
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television'
 def award_winner_24(entities, db):
     print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
+    print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
     show_freq_hosts(females_only)
-    name = remove_one_word_names(entities=females_only)
+    name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'
 def award_winner_25(entities, db):
     print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
+    print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
     show_freq_hosts(males_only)
-    name = remove_one_word_names(entities=males_only)
+    name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
@@ -1249,9 +1384,716 @@ def award_winner_26(entities, db):
     print("{award}: ".format(award='cecil b. demille award'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
+    # merged = merge_keys_for_person_winner_imdb(shorten, db=db)
+    # print(merged)
+    show_freq_hosts(sub)
+    max_ = max(sub, key=sub.get) if sub else " "
+    return max_
+
+# ----------------------------------------------
+
+
+def award_present_master(awards, db):
+    result_dict = defaultdict(list)
+    result_dict['best motion picture - drama'] = award_present_1(entities=awards.get('best motion picture - drama'), db=db)
+    result_dict['best motion picture - comedy or musical'] = award_present_2(entities=awards.get('best motion picture - comedy or musical'), db=db)
+    result_dict['best performance by an actress in a motion picture - drama'] = award_present_3(entities=awards.get('best performance by an actress in a motion picture - drama'), db=db)
+    result_dict['best performance by an actor in a motion picture - drama'] = award_present_4(entities=awards.get('best performance by an actor in a motion picture - drama'), db=db)
+    result_dict['best performance by an actress in a motion picture - comedy or musical'] = award_present_5(entities=awards.get('best performance by an actress in a motion picture - comedy or musical'), db=db)
+    result_dict['best performance by an actor in a motion picture - comedy or musical'] = award_present_6(entities=awards.get('best performance by an actor in a motion picture - comedy or musical'), db=db)
+    result_dict['best performance by an actress in a supporting role in any motion picture'] = award_present_7(entities=awards.get('best performance by an actress in a supporting role in any motion picture'), db=db)
+    result_dict['best performance by an actor in a supporting role in any motion picture'] = award_present_8(entities=awards.get('best performance by an actor in a supporting role in any motion picture'), db=db)
+    result_dict['best director - motion picture'] = award_present_9(entities=awards.get('best director - motion picture'), db=db)
+    result_dict['best screenplay - motion picture']= award_present_10(entities=awards.get('best screenplay - motion picture'), db=db)
+    result_dict['best motion picture - animated'] = award_present_11(entities=awards.get('best motion picture - animated'), db=db)
+    result_dict['best motion picture - foreign language'] = award_present_12(entities=awards.get('best motion picture - foreign language'), db=db)
+    result_dict['best original score - motion picture'] = award_present_13(entities=awards.get('best original score - motion picture'), db=db)
+    result_dict['best original song - motion picture'] = award_present_14(entities=awards.get('best original song - motion picture'), db=db)
+    result_dict['best television series - drama'] = award_present_15(entities=awards.get('best television series - drama'), db=db)
+    result_dict['best television series - comedy or musical'] = award_present_16(entities=awards.get('best television series - comedy or musical'), db=db)
+    result_dict['best television limited series or motion picture made for television'] = award_present_17(entities=awards.get('best television limited series or motion picture made for television'), db=db)
+    result_dict['best performance by an actress in a limited series or a motion picture made for television'] = award_present_18(entities=awards.get('best performance by an actress in a limited series or a motion picture made for television'), db=db)
+    result_dict['best performance by an actor in a limited series or a motion picture made for television'] = award_present_19(entities=awards.get('best performance by an actor in a limited series or a motion picture made for television'), db=db)
+    result_dict['best performance by an actress in a television series - drama'] = award_present_20(entities=awards.get('best performance by an actress in a television series - drama'), db=db)
+    result_dict['best performance by an actor in a television series - drama'] = award_present_21(entities=awards.get('best performance by an actor in a television series - drama'), db=db)
+    result_dict['best performance by an actress in a television series - comedy or musical'] = award_present_22(entities=awards.get('best performance by an actress in a television series - comedy or musical'), db=db)
+    result_dict['best performance by an actor in a television series - comedy or musical'] = award_present_23(entities=awards.get('best performance by an actor in a television series - comedy or musical'), db=db)
+    result_dict['best performance by an actress in a supporting role in a series, limited series or motion picture made for television'] = award_present_24(entities=awards.get('best performance by an actress in a supporting role in a series, limited series or motion picture made for television'), db=db)
+    result_dict['best performance by an actor in a supporting role in a series, limited series or motion picture made for television'] = award_present_25(entities=awards.get('best performance by an actor in a supporting role in a series, limited series or motion picture made for television'), db=db)
+    result_dict['cecil b. demille award'] = award_present_26(entities=awards.get('cecil b. demille award'), db=db)
+    return result_dict
+
+
+def calculate_presenters(entities):
+    presenters = []
+    if entities:
+        freq = nltk.FreqDist(entities)
+        max_value_key = max(freq, key=freq.get)
+        presenters.append(max_value_key)
+        for k in freq:
+            if k != max_value_key and (freq.get(k) >= (freq[max_value_key] * .9)):
+                presenters.append(k)
+                break
+        return presenters
+    return []
+
+
+# best motion picture - drama
+def award_present_1(entities, db):
+    print("{award}: ".format(award='best motion picture - drama'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best motion picture - comedy or musical
+def award_present_2(entities, db):
+    print("{award}: ".format(award='best motion picture - comedy or musical'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actress in a motion picture - drama
+def award_present_3(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actor in a motion picture - drama
+def award_present_4(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actress in a motion picture - comedy or musical
+def award_present_5(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actor in a motion picture - comedy or musical
+def award_present_6(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actress in a supporting role in any motion picture
+def award_present_7(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actor in a supporting role in any motion picture
+def award_present_8(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# Best Direction - Motion Picture (Correct)
+def award_present_9(entities, db):
+    print("{award}: ".format(award='best director - motion picture'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# 'best screenplay - motion picture'
+def award_present_10(entities, db):
+    print("{award}: ".format(award='best screenplay - motion picture'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best motion picture - animated
+def award_present_11(entities, db):
+    print("{award}: ".format(award='best motion picture - animated'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best motion picture - foreign language
+def award_present_12(entities, db):
+    print("{award}: ".format(award='best motion picture - foreign language'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+# best original score - motion picture
+def award_present_13(entities, db):
+    print("{award}: ".format(award='best original score - motion picture'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best original song - motion picture
+def award_present_14(entities, db):
+    print("{award}: ".format(award='best original song - motion picture'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best television series - drama
+def award_present_15(entities, db):
+    print("{award}: ".format(award='best television series - drama'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best television series - comedy or musical
+def award_present_16(entities, db):
+    print("{award}: ".format(award='best television series - comedy or musical'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best television limited series or motion picture made for television
+def award_present_17(entities, db):
+    print("{award}: ".format(award='best television limited series or motion picture made for television'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# TODO: Change to movie as winner (maybe, wait for Viktor response)
+# best performance by an actress in a limited series or a motion picture made for television
+def award_present_18(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actor in a limited series or a motion picture made for television
+def award_present_19(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actress in a television series - drama
+def award_present_20(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a television series - drama'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# best performance by an actor in a television series - drama
+def award_present_21(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a television series - drama'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+# 'best performance by an actress in a television series - comedy or musical'
+def award_present_22(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# 'best performance by an actor in a television series - comedy or musical'
+def award_present_23(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television'
+def award_present_24(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
+    print(entities)
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'
+def award_present_25(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
+    print(entities)
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+# 'cecil b. demille award'
+def award_present_26(entities, db):
+    print("{award}: ".format(award='cecil b. demille award'))
+    sub = merge_keys_for_person_winner_sub(entities)
+    show_freq_hosts(sub)
+    full_names = full_names_only(entities=entities)
+    presenters = calculate_presenters(full_names)
+    print(presenters)
+    return presenters
+
+
+def award_nominee_master(awards, db):
+    result_dict = defaultdict(list)
+    result_dict['best motion picture - drama'] = award_nominee_1(entities=awards.get('best motion picture - drama'), db=db)
+    result_dict['best motion picture - comedy or musical'] = award_nominee_2(entities=awards.get('best motion picture - comedy or musical'), db=db)
+    result_dict['best performance by an actress in a motion picture - drama'] = award_nominee_3(entities=awards.get('best performance by an actress in a motion picture - drama'), db=db)
+    result_dict['best performance by an actor in a motion picture - drama'] = award_nominee_4(entities=awards.get('best performance by an actor in a motion picture - drama'), db=db)
+    result_dict['best performance by an actress in a motion picture - comedy or musical'] = award_nominee_5(entities=awards.get('best performance by an actress in a motion picture - comedy or musical'), db=db)
+    result_dict['best performance by an actor in a motion picture - comedy or musical'] = award_nominee_6(entities=awards.get('best performance by an actor in a motion picture - comedy or musical'), db=db)
+    result_dict['best performance by an actress in a supporting role in any motion picture'] = award_nominee_7(entities=awards.get('best performance by an actress in a supporting role in any motion picture'), db=db)
+    result_dict['best performance by an actor in a supporting role in any motion picture'] = award_nominee_8(entities=awards.get('best performance by an actor in a supporting role in any motion picture'), db=db)
+    result_dict['best director - motion picture'] = award_nominee_9(entities=awards.get('best director - motion picture'), db=db)
+    result_dict['best screenplay - motion picture']= award_nominee_10(entities=awards.get('best screenplay - motion picture'), db=db)
+    result_dict['best motion picture - animated'] = award_nominee_11(entities=awards.get('best motion picture - animated'), db=db)
+    result_dict['best motion picture - foreign language'] = award_nominee_12(entities=awards.get('best motion picture - foreign language'), db=db)
+    result_dict['best original score - motion picture'] = award_nominee_13(entities=awards.get('best original score - motion picture'), db=db)
+    result_dict['best original song - motion picture'] = award_nominee_14(entities=awards.get('best original song - motion picture'), db=db)
+    result_dict['best television series - drama'] = award_nominee_15(entities=awards.get('best television series - drama'), db=db)
+    result_dict['best television series - comedy or musical'] = award_nominee_16(entities=awards.get('best television series - comedy or musical'), db=db)
+    result_dict['best television limited series or motion picture made for television'] = award_nominee_17(entities=awards.get('best television limited series or motion picture made for television'), db=db)
+    result_dict['best performance by an actress in a limited series or a motion picture made for television'] = award_nominee_18(entities=awards.get('best performance by an actress in a limited series or a motion picture made for television'), db=db)
+    result_dict['best performance by an actor in a limited series or a motion picture made for television'] = award_nominee_19(entities=awards.get('best performance by an actor in a limited series or a motion picture made for television'), db=db)
+    result_dict['best performance by an actress in a television series - drama'] = award_nominee_20(entities=awards.get('best performance by an actress in a television series - drama'), db=db)
+    result_dict['best performance by an actor in a television series - drama'] = award_nominee_21(entities=awards.get('best performance by an actor in a television series - drama'), db=db)
+    result_dict['best performance by an actress in a television series - comedy or musical'] = award_nominee_22(entities=awards.get('best performance by an actress in a television series - comedy or musical'), db=db)
+    result_dict['best performance by an actor in a television series - comedy or musical'] = award_nominee_23(entities=awards.get('best performance by an actor in a television series - comedy or musical'), db=db)
+    result_dict['best performance by an actress in a supporting role in a series, limited series or motion picture made for television'] = award_nominee_24(entities=awards.get('best performance by an actress in a supporting role in a series, limited series or motion picture made for television'), db=db)
+    result_dict['best performance by an actor in a supporting role in a series, limited series or motion picture made for television'] = award_nominee_25(entities=awards.get('best performance by an actor in a supporting role in a series, limited series or motion picture made for television'), db=db)
+    result_dict['cecil b. demille award'] = award_nominee_26(entities=awards.get('cecil b. demille award'), db=db)
+    return result_dict
+
+
+def calculate_nominees(entities):
+    nominees = []
+    already_viewed_terms = []
+    count = 0
+    if entities:
+        freq = nltk.FreqDist(entities)
+        max_value_key = max(freq, key=freq.get)
+        nominees.append(max_value_key)
+        already_viewed_terms.append(max_value_key)
+        for k in freq:
+            if k not in already_viewed_terms and (count < 5):
+                count += 1
+                max_value_key = k
+                nominees.append(max_value_key)
+            elif count > 5:
+                break
+        return nominees
+    return []
+
+
+# best motion picture - drama
+def award_nominee_1(entities, db):
+    print("{award}: ".format(award='best motion picture - drama'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best motion picture - comedy or musical
+def award_nominee_2(entities, db):
+    print("{award}: ".format(award='best motion picture - comedy or musical'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best performance by an actress in a motion picture - drama
+def award_nominee_3(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
+    # shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(entities)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    print("Females: {}".format(females_only))
+    # name = remove_one_word_names(entities=females_only) if females_only else " "
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# best performance by an actor in a motion picture - drama
+def award_nominee_4(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
+    # shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(entities)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    print("Males: {}".format(males_only))
+    show_freq_hosts(males_only)
+    # name = remove_one_word_names(entities=males_only) if males_only else " "
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# best performance by an actress in a motion picture - comedy or musical
+def award_nominee_5(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# best performance by an actor in a motion picture - comedy or musical
+def award_nominee_6(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    show_freq_hosts(males_only)
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# best performance by an actress in a supporting role in any motion picture
+def award_nominee_7(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
+    print(entities)
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# best performance by an actor in a supporting role in any motion picture
+def award_nominee_8(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
+    print(entities)
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    show_freq_hosts(males_only)
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# Best Direction - Motion Picture (Correct)
+def award_nominee_9(entities, db):
+    print("{award}: ".format(award='best director - motion picture'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     show_freq_hosts(merged)
-    return max(merged, key=merged.get)
+    max_ = calculate_nominees(merged)
+    return max_
+
+
+# 'best screenplay - motion picture'
+def award_nominee_10(entities, db):
+    print("{award}: ".format(award='best screenplay - motion picture'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best motion picture - animated
+def award_nominee_11(entities, db):
+    print("{award}: ".format(award='best motion picture - animated'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best motion picture - foreign language
+def award_nominee_12(entities, db):
+    print("{award}: ".format(award='best motion picture - foreign language'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best original score - motion picture
+def award_nominee_13(entities, db):
+    print("{award}: ".format(award='best original score - motion picture'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best original song - motion picture
+def award_nominee_14(entities, db):
+    print("{award}: ".format(award='best original song - motion picture'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best television series - drama
+def award_nominee_15(entities, db):
+    print("{award}: ".format(award='best television series - drama'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best television series - comedy or musical
+def award_nominee_16(entities, db):
+    print("{award}: ".format(award='best television series - comedy or musical'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# best television limited series or motion picture made for television
+def award_nominee_17(entities, db):
+    print("{award}: ".format(award='best television limited series or motion picture made for television'))
+    shorten = shorten_dict(entities)
+    names_removed = remove_names(shorten)
+    sub = merge_keys_for_person_winner_sub(names_removed)
+    movies = is_movie(entities=sub, db=db)
+    show_freq_hosts(movies)
+    max_ = calculate_nominees(movies)
+    return max_
+
+
+# TODO: Change to movie as winner (maybe, wait for Viktor response)
+# best performance by an actress in a limited series or a motion picture made for television
+def award_nominee_18(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# best performance by an actor in a limited series or a motion picture made for television
+def award_nominee_19(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    show_freq_hosts(males_only)
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# best performance by an actress in a television series - drama
+def award_nominee_20(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a television series - drama'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# best performance by an actor in a television series - drama
+def award_nominee_21(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a television series - drama'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    show_freq_hosts(males_only)
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# 'best performance by an actress in a television series - comedy or musical'
+def award_nominee_22(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# 'best performance by an actor in a television series - comedy or musical'
+def award_nominee_23(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    show_freq_hosts(males_only)
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television'
+def award_nominee_24(entities, db):
+    print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
+    print(entities)
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    females_only = only_female_entities(merged)
+    show_freq_hosts(females_only)
+    max_ = calculate_nominees(females_only)
+    return max_
+
+
+# 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'
+def award_nominee_25(entities, db):
+    print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
+    print(entities)
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    merged = merge_keys_for_person_winner_imdb(sub, db=db)
+    males_only = only_male_entities(merged)
+    show_freq_hosts(males_only)
+    max_ = calculate_nominees(males_only)
+    return max_
+
+
+# 'cecil b. demille award'
+def award_nominee_26(entities, db):
+    print("{award}: ".format(award='cecil b. demille award'))
+    shorten = shorten_dict(entities)
+    sub = merge_keys_for_person_winner_sub(shorten)
+    # merged = merge_keys_for_person_winner_imdb(shorten, db=db)
+    # print(merged)
+    show_freq_hosts(sub)
+    max_ = max(sub, key=sub.get) if sub else " "
+    return max_
 
 
 if __name__ == '__main__':
