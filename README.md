@@ -16,6 +16,7 @@ Note:
 - It will take time to download for the first time libraries from NLTK, such as stopwords, names, and more. This simply can be downloaded by running the gg_api.py file for the first time, or simply the autograder. Please take this into consideration when focusing on the time constraints of the assignment.
 - Also, ensure that everything is always run in python3 because it may cause issues with encoding/decoding ascii. A simple command would be to do an "alias python=python3" so that you don't have to type python3 each time.
 - Also, note that if you are running in python3, you want to install the dependencies with pip3 instead of pip to make sure python3 can reach the dependencies.
+- Make sure to have master_data in the pre-ceremony and have that run in the autograder.py main. Master data pulls all the tweets and creates a relevant list of tweets using regex expressions for all the functions. SUPER IMPORTANT!
 
 Human readable output will be sent to the console.
 
