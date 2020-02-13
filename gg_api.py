@@ -1,3 +1,4 @@
+# coding=utf-8
 '''Version 0.35'''
 import nltk
 from nltk.corpus import names
@@ -70,6 +71,18 @@ OFFICIAL_AWARDS_1819 = ['best motion picture - drama', 'best motion picture - co
                         'best performance by an actress in a supporting role in a series, limited series or motion picture made for television',
                         'best performance by an actor in a supporting role in a series, limited series or motion picture made for television',
                         'cecil b. demille award']
+
+
+accumulated_tweets = {
+    "Host": [],
+    "Award": [],
+    "Winner": [],
+    "Presenter": [],
+    "Nominee": [],
+    "Best Dressed": [],
+    "Worst Dressed": [],
+    "Best Joker": []
+}
 
 # Checks/Incorrects for 2013
 awards_regex = {
@@ -167,6 +180,102 @@ nominees_regex = {
 }
 
 
+# Creates a list of relevant tweets for each "get" function
+# and store its to it's appropiate key ("host": [all, the, relevant, tweets])
+def master_data(year):
+    year_minus_one = int(year) - 1
+    year_minus_two = int(year) - 2
+    with open('./data/gg{year}.json'.format(year=year)) as f, open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
+        tweets = json.load(f)
+        # imdb_db_1 = json.load(imdb_1)
+        # imdb_db_2 = json.load(imdb_2)
+        # imdb_total = [imdb_db_1, imdb_db_2]
+
+        # Regex expressions for Host
+        master_regex_host_1 = r"^(?=.*\b(hosting)\b).*$"
+
+        ultimate_regex_ = r"^((?!(rt)).)*$"
+        # Regex expressions for Winner
+        master_regex_winner_1 = r"^(?=.*\b(best)\b)(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        master_regex_winner_2 = r"^(?=.*\b(best)\b)(?=.*\b(wins|won|nominated|nominees|present|presenters)\b)(?=.*\b(actor|actress|director)\b).*$"
+        master_regex_winner_3 = r"^(?=.*\b(best)\b)(?=.*\b(support.*)\b)(?=.*\b(actor|actress)\b).*$"
+        master_regex_winner_4 = r"^(?=.*\b(cecil|demille)\b).*$"
+
+        # Regex expressions for Presenter
+        negative_regex_presenter_ = r"^((?!(wins|won|host.*)).)*$"
+        ultimate_regex_presenter_ = r"^(?=.*\b(present.*)\b).*$"
+        master_regex_presenter_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        master_regex_presenter_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
+        master_regex_presenter_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
+        master_regex_presenter_4 = r"^(?=.*\b(cecil|demille)\b).*$"
+
+        # Regex expressions for Nominees
+        # ultimate_regex_nominee_1 = r"^((?!(rt|present.*|host.*)).)*$"
+        ultimate_regex_nominee_2 = r"^(?=.*\b(nomin.*)\b).*$"
+        master_regex_nominee_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        master_regex_nominee_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
+        master_regex_nominee_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
+        master_regex_nominee_4 = r"^(?=.*\b(cecil|demille)\b).*$"
+
+        # Regex expression for Red Carpet Best/Worst Dressed
+        master_regex_best_dressed = r"^(?=.*\b(best|omg.*|dam.*|oof|love.*|sex.*)\b)(?=.*\b((dress.*|outfit|suit))\b).*$"
+        master_regex_worst_dressed = r"^(?=.*\b(worst|hate|ew.*|don't like|terrible)\b)(?=.*\b((dress.*|outfit|suit))\b).*$"
+
+        # Regex expression for best joker
+        master_regex_best_joker = r"^(?=.*\b(best|omg.*|hilar.*|lmao|lol|i'm dead|dead|crack|omfg.*)\b)(?=.*\b((jok.*))\b).*$"
+
+        # start_begin = datetime.now()
+        # pot_begin = timedelta(seconds=90)
+        for tweet in tweets:
+            # if start_begin + pot_begin < datetime.now():
+            #     break
+            tweet_text = tweet.get('text')
+            ultimate_match = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
+            if ultimate_match:
+                # Host matches
+                matches_host_1 = re.findall(master_regex_host_1, tweet_text.lower(), re.MULTILINE)
+                if matches_host_1:
+                    accumulated_tweets['Host'].append(tweet_text)
+                # Winner matches
+                matches_winner_1 = re.findall(master_regex_winner_1, tweet_text.lower(), re.MULTILINE)
+                matches_winner_2 = re.findall(master_regex_winner_2, tweet_text.lower(), re.MULTILINE)
+                matches_winner_3 = re.findall(master_regex_winner_3, tweet_text.lower(), re.MULTILINE)
+                matches_winner_4 = re.findall(master_regex_winner_4, tweet_text.lower(), re.MULTILINE)
+                if matches_winner_1 or matches_winner_2 or matches_winner_3 or matches_winner_4:
+                    accumulated_tweets['Winner'].append(tweet_text)
+                # Best/Dressed matches
+                best_dress_matches_1 = re.findall(master_regex_best_dressed, tweet_text.lower(), re.MULTILINE)
+                worst_dress_matches_2 = re.findall(master_regex_worst_dressed, tweet_text.lower(), re.MULTILINE)
+                if best_dress_matches_1:
+                    accumulated_tweets['Best Dressed'].append(tweet_text)
+                if worst_dress_matches_2:
+                    accumulated_tweets['Worst Dressed'].append(tweet_text)
+                # Best Joker matches
+                best_joker_matches_1 = re.findall(master_regex_best_joker, tweet_text.lower(), re.MULTILINE)
+                if best_joker_matches_1:
+                    accumulated_tweets['Best Joker'].append(tweet_text)
+
+            # Presenter matches
+            negative_presenter_match = re.findall(negative_regex_presenter_, tweet_text.lower(), re.MULTILINE)
+            ultimate_presenter_match = re.findall(ultimate_regex_presenter_, tweet_text.lower(), re.MULTILINE)
+            if negative_presenter_match and ultimate_presenter_match:
+                matches_presenter_1 = re.findall(master_regex_presenter_1, tweet_text.lower(), re.MULTILINE)
+                matches_presenter_2 = re.findall(master_regex_presenter_2, tweet_text.lower(), re.MULTILINE)
+                matches_presenter_3 = re.findall(master_regex_presenter_3, tweet_text.lower(), re.MULTILINE)
+                matches_presenter_4 = re.findall(master_regex_presenter_4, tweet_text.lower(), re.MULTILINE)
+                if matches_presenter_1 or matches_presenter_2 or matches_presenter_3 or matches_presenter_4:
+                    accumulated_tweets['Presenter'].append(tweet_text)
+            # Nominee matches
+            # nominee_matches_1 = re.findall(ultimate_regex_nominee_1, tweet_text.lower(), re.MULTILINE)
+            nominee_matches_2 = re.findall(ultimate_regex_nominee_2, tweet_text.lower(), re.MULTILINE)
+            if nominee_matches_2:
+                matches_nominee_1 = re.findall(master_regex_nominee_1, tweet_text.lower(), re.MULTILINE)
+                matches_nominee_2 = re.findall(master_regex_nominee_2, tweet_text.lower(), re.MULTILINE)
+                matches_nominee_3 = re.findall(master_regex_nominee_3, tweet_text.lower(), re.MULTILINE)
+                matches_nominee_4 = re.findall(master_regex_nominee_4, tweet_text.lower(), re.MULTILINE)
+                if matches_nominee_1 or matches_nominee_2 or matches_nominee_3 or matches_nominee_4:
+                    accumulated_tweets['Nominee'].append(tweet_text)
+
 def get_continous_chunks(text):
     forbidden_stop_words = ['cecil', 'cecil b', 'cecil b.', 'screenplay', 'movie', 'motion', 'picture', 'actor',
                             'actress', 'original', 'song', 'score']
@@ -183,7 +292,6 @@ def get_continous_chunks(text):
                 current_chunk = []
             else:
                 continue
-    # result = [i.encode('ascii', 'ignore').strip() for i in continuous_chunk]
     return continuous_chunk
 
 
@@ -191,33 +299,17 @@ def get_continous_chunks(text):
 def get_hosts(year):
     '''Hosts is a list of one or more strings. Do NOT change the name
     of this function or what it returns.'''
-    with open('./data/gg{year}.json'.format(year=year)) as f:
-        tweets = json.load(f)
-        named_entities = defaultdict(int)
-        ultimate_regex_ = r"^((?!rt).)*$"
-        master_regex = r"^(?!\b.*(next).*\b$)(?=.*\b(hosting)\b).*$"
-        start = datetime.now()
-        pot = timedelta(seconds=15)
-        for tweet in tweets:
-            if start + pot < datetime.now():
-                break
-            tweet_text = tweet.get('text')
+    named_entities = defaultdict(int)
+    for tweet in accumulated_tweets['Host']:
+        tweet_named_entities = get_continous_chunks(tweet)
+        for ne in tweet_named_entities:
+            named_entities[ne] += 1
 
-            ultimate_match = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
-            if ultimate_match:
-                matches = re.findall(master_regex, tweet_text.lower(), re.MULTILINE)
-                if matches:
-                    tweet_named_entities = get_continous_chunks(tweet_text)
-                    for ne in tweet_named_entities:
-                        named_entities[ne] += 1
-
-        print("\n\n")
-        merged = merge_keys(named_entities)
-        show_freq_hosts(merged)
-        hosts = calculate_hosts(merged)
-        print(hosts)
-        return hosts
-
+    print("Hosts: \n")
+    merged = merge_keys(named_entities)
+    hosts = calculate_hosts(merged)
+    print(hosts)
+    return hosts
 
 
 # This function is to print out the most common named entities
@@ -430,7 +522,7 @@ def get_awards(year):
 
     print(awardds)
     print(len(awardds))
-    print('Finished in', (time.time() - start))
+    # print('Finished in', (time.time() - start))
     return awardds
 
 
@@ -438,7 +530,6 @@ def get_nominees(year):
     '''Nominees is a dictionary with the hard coded award
     names as keys, and each entry a list of strings. Do NOT change
     the name of this function or what it returns.'''
-
 
     awards_mapped_to_entities = {
         'best motion picture - drama': defaultdict(int),
@@ -473,52 +564,30 @@ def get_nominees(year):
 
     year_minus_one = int(year) - 1
     year_minus_two = int(year) - 2
-    with open('./data/gg{year}.json'.format(year=year)) as twitter, open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
+    with open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
         imdb_db_1 = json.load(imdb_1)
         imdb_db_2 = json.load(imdb_2)
         imdb_total = [imdb_db_1, imdb_db_2]
-        tweets = json.load(twitter)
 
-        filtered_tweets = []
-        ultimate_regex_ = r"^((?!(rt|present.*|host.*)).)*$"
-        # ultimate_regex_2 = r"^(?=.*\b(nomin.*)\b).*$"
-        master_regex_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
-        master_regex_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
-        master_regex_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
-        master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
         start_begin = datetime.now()
         pot_begin = timedelta(seconds=45)
-        for tweet in tweets:
-            if start_begin + pot_begin < datetime.now():
-                break
-            tweet_text = tweet.get('text')
-            ultimate_match_ = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
-            if ultimate_match_:
-                # ultimate_match_2 = re.findall(ultimate_regex_2, tweet_text.lower(), re.MULTILINE)
-                # if ultimate_match_2:
-                matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
-                matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
-                matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
-                matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
-                if matches_1 or matches_2 or matches_3 or matches_4:
-                    filtered_tweets.append(tweet_text)
-
-        start = datetime.now()
-        pot = timedelta(seconds=60)
-        for sub_tweet in filtered_tweets:
-            if start + pot < datetime.now():
-                break
+        for tweet in accumulated_tweets['Nominee']:
             for regex_ in nominees_regex:
-                matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
+                if start_begin + pot_begin < datetime.now():
+                    break
+                matches = re.findall(regex_, tweet.lower(), re.MULTILINE)
                 if matches:
                     for award in nominees_regex.get(regex_):
-                        tweet_named_entities = get_continous_chunks(sub_tweet)
+                        tweet_named_entities = get_continous_chunks(tweet)
                         for ne in tweet_named_entities:
                             awards_mapped_to_entities.get(award)[ne] += 1
 
         result = award_nominee_master(awards=awards_mapped_to_entities, db=imdb_total)
-        print(result)
+        print("Nominees: \n")
+        for key, val in result.items():
+            print("{k}: {v}".format(k=key, v=val))
         return result
+
 
 
 def get_winner(year):
@@ -562,118 +631,30 @@ def get_winner(year):
 
     year_minus_one = int(year) - 1
     year_minus_two = int(year) - 2
-    with open('./data/gg{year}.json'.format(year=year)) as f, open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
-        tweets = json.load(f)
+    with open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
         imdb_db_1 = json.load(imdb_1)
         imdb_db_2 = json.load(imdb_2)
         imdb_total = [imdb_db_1, imdb_db_2]
 
-        filtered_tweets = []
-        ultimate_regex_ = r"^((?!(rt|didn't|did not|lost)).)*$"
-        master_regex_1 = r"^(?=.*\b(best)\b)(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
-        master_regex_2 = r"^(?=.*\b(best)\b)(?=.*\b(wins|won|nominated|nominees|present|presenters)\b)(?=.*\b(actor|actress|director)\b).*$"
-        master_regex_3 = r"^(?=.*\b(best)\b)(?=.*\b(support.*)\b)(?=.*\b(actor|actress)\b).*$"
-        master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
         start_begin = datetime.now()
-        pot_begin = timedelta(seconds=90)
-        for tweet in tweets:
+        pot_begin = timedelta(seconds=120)
+        for tweet in accumulated_tweets['Winner']:
             if start_begin + pot_begin < datetime.now():
                 break
-            tweet_text = tweet.get('text')
-            ultimate_match = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
-            if ultimate_match:
-                matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
-                matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
-                matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
-                matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
-                if matches_1 or matches_2 or matches_3 or matches_4:
-                    filtered_tweets.append(tweet_text)
-
-        start = datetime.now()
-        pot = timedelta(seconds=90)
-        for sub_tweet in filtered_tweets:
-            if start + pot < datetime.now():
-                break
             for regex_ in winners_regex:
-                matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
+                matches = re.findall(regex_, tweet.lower(), re.MULTILINE)
                 if matches:
                     for award in winners_regex.get(regex_):
-                        tweet_named_entities = get_continous_chunks(sub_tweet)
+                        tweet_named_entities = get_continous_chunks(tweet)
                         for ne in tweet_named_entities:
                             awards_mapped_to_winners.get(award)[ne] += 1
 
     result = award_winner_master(awards=awards_mapped_to_winners, db=imdb_total)
-    print(result)
+    print("Winners: \n")
+    for key, val in result.items():
+        print("{k}: {v}".format(k=key, v=val))
     return result
 
-
-    #
-    # '''Winners is a dictionary with the hard coded award
-    # names as keys, and each entry containing a single string.
-    # Do NOT change the name of this function or what it returns.'''
-    # # Your code here
-    # return {
-    #     "best screenplay - motion picture": "Django Unchained",
-    #     "best director - motion picture": "ben affleck",
-    #     "best performance by an actress in a television series - comedy or musical": "lena dunham",
-    #     "best foreign language film": "amour",
-    #     "best performance by an actor in a supporting role in a motion picture": "christoph waltz",
-    #     "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": "maggie smith",
-    #     "best motion picture - comedy or musical": "les miserables",
-    #     "best performance by an actress in a motion picture - comedy or musical": "jennifer lawrence",
-    #     "best mini-series or motion picture made for television": "game change",
-    #     "best original score - motion picture": "life of pi",
-    #     "best performance by an actress in a television series - drama": "claire danes",
-    #     "best performance by an actress in a motion picture - drama": "jessica chastain",
-    #     "cecil b. demille award": "jodie foster",
-    #     "best performance by an actor in a motion picture - comedy or musical": "hugh jackman",
-    #     "best motion picture - drama": "argo",
-    #     "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": "ed harris",
-    #     "best performance by an actress in a supporting role in a motion picture": "anne hathaway",
-    #     "best television series - drama": "homeland",
-    #     "best performance by an actor in a mini-series or motion picture made for television": "kevin costner",
-    #     "best performance by an actress in a mini-series or motion picture made for television": "julianne moore",
-    #     "best animated feature film": "brave",
-    #     "best original song - motion picture": "skyfall",
-    #     "best performance by an actor in a motion picture - drama": "daniel day-lewis",
-    #     "best television series - comedy or musical": "girls",
-    #     "best performance by an actor in a television series - drama": "damian lewis",
-    #     "best performance by an actor in a television series - comedy or musical": "don cheadle"
-    # }
-
-
-    '''Winners is a dictionary with the hard coded award
-    names as keys, and each entry containing a single string.
-    Do NOT change the name of this function or what it returns.'''
-    # Your code here
-    return {
-        "best screenplay - motion picture": "Django Unchained",
-        "best director - motion picture": "ben affleck",
-        "best performance by an actress in a television series - comedy or musical": "lena dunham",
-        "best foreign language film": "amour",
-        "best performance by an actor in a supporting role in a motion picture": "christoph waltz",
-        "best performance by an actress in a supporting role in a series, mini-series or motion picture made for television": "maggie smith",
-        "best motion picture - comedy or musical": "les miserables",
-        "best performance by an actress in a motion picture - comedy or musical": "jennifer lawrence",
-        "best mini-series or motion picture made for television": "game change",
-        "best original score - motion picture": "life of pi",
-        "best performance by an actress in a television series - drama": "claire danes",
-        "best performance by an actress in a motion picture - drama": "jessica chastain",
-        "cecil b. demille award": "jodie foster",
-        "best performance by an actor in a motion picture - comedy or musical": "hugh jackman",
-        "best motion picture - drama": "argo",
-        "best performance by an actor in a supporting role in a series, mini-series or motion picture made for television": "ed harris",
-        "best performance by an actress in a supporting role in a motion picture": "anne hathaway",
-        "best television series - drama": "homeland",
-        "best performance by an actor in a mini-series or motion picture made for television": "kevin costner",
-        "best performance by an actress in a mini-series or motion picture made for television": "julianne moore",
-        "best animated feature film": "brave",
-        "best original song - motion picture": "skyfall",
-        "best performance by an actor in a motion picture - drama": "daniel day-lewis",
-        "best television series - comedy or musical": "girls",
-        "best performance by an actor in a television series - drama": "damian lewis",
-        "best performance by an actor in a television series - comedy or musical": "don cheadle"
-    }
 
 def merge_keys_winner(ne, award_to_person=True):
     result_dict = {}
@@ -847,7 +828,6 @@ def full_names_only(entities):
 
 
 def strip_accents(text):
-
     try:
         text = unicode(text, 'utf-8')
     except NameError: # unicode is a default on python 3
@@ -898,52 +878,66 @@ def get_presenters(year):
 
     year_minus_one = int(year) - 1
     year_minus_two = int(year) - 2
-    with open('./data/gg{year}.json'.format(year=year)) as twitter, open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
+    with open('./data/rpm_{year}.json'.format(year=str(year_minus_one))) as imdb_1, open('./data/rpm_{year}.json'.format(year=str(year_minus_two))) as imdb_2:
         imdb_db_1 = imdb_1
         imdb_db_2 = imdb_2
         imdb_total = [imdb_db_1, imdb_db_2]
-        tweets = json.load(twitter)
+        # tweets = json.load(twitter)
 
-        filtered_tweets = []
-        ultimate_regex_ = r"^((?!(wins|won|host.*)).)*$"
-        ultimate_regex_2 = r"^(?=.*\b(present.*)\b).*$"
-        master_regex_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
-        master_regex_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
-        master_regex_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
-        master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
-        start_begin = datetime.now()
-        pot_begin = timedelta(seconds=45)
-        for tweet in tweets:
-            if start_begin + pot_begin < datetime.now():
-                break
-            tweet_text = tweet.get('text')
-            ultimate_match_ = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
-            if ultimate_match_:
-                ultimate_match_2 = re.findall(ultimate_regex_2, tweet_text.lower(), re.MULTILINE)
-                if ultimate_match_2:
-                    matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
-                    matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
-                    matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
-                    matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
-                    if matches_1 or matches_2 or matches_3 or matches_4:
-                        filtered_tweets.append(tweet_text)
-
+        # filtered_tweets = []
+        # ultimate_regex_ = r"^((?!(wins|won|host.*)).)*$"
+        # ultimate_regex_2 = r"^(?=.*\b(present.*)\b).*$"
+        # master_regex_1 = r"^(?=.*\b(drama|comedy|musical|animated|foreign|screenplay|original|song|score)\b)(?=.*\b(motion|picture|movie|tv|television|series|limited)\b).*$"
+        # master_regex_2 = r"^(?=.*\b(actor|actress|director)\b).*$"
+        # master_regex_3 = r"^(?=.*\b(supporting|support)\b)(?=.*\b(actor|actress)\b).*$"
+        # master_regex_4 = r"^(?=.*\b(cecil|demille)\b).*$"
         start = datetime.now()
         pot = timedelta(seconds=45)
-        for sub_tweet in filtered_tweets:
+        for tweet in accumulated_tweets['Presenter']:
             if start + pot < datetime.now():
                 break
             for regex_ in presenters_regex:
-                matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
+                matches = re.findall(regex_, tweet.lower(), re.MULTILINE)
                 if matches:
                     for award in presenters_regex.get(regex_):
-                        tweet_named_entities = get_continous_chunks(sub_tweet)
+                        tweet_named_entities = get_continous_chunks(tweet)
                         for ne in tweet_named_entities:
                             awards_mapped_to_entities.get(award)[ne] += 1
-
         result = award_present_master(awards=awards_mapped_to_entities, db=imdb_total)
-        print(result)
+        print("Presenters: \n")
+        for key, val in result.items():
+            print("{k}: {v}".format(k=key, v=val))
         return result
+            # if start_begin + pot_begin < datetime.now():
+            #     break
+            # tweet_text = tweet.get('text')
+            # ultimate_match_ = re.findall(ultimate_regex_, tweet_text.lower(), re.MULTILINE)
+            # if ultimate_match_:
+            #     ultimate_match_2 = re.findall(ultimate_regex_2, tweet_text.lower(), re.MULTILINE)
+            #     if ultimate_match_2:
+            #         matches_1 = re.findall(master_regex_1, tweet_text.lower(), re.MULTILINE)
+            #         matches_2 = re.findall(master_regex_2, tweet_text.lower(), re.MULTILINE)
+            #         matches_3 = re.findall(master_regex_3, tweet_text.lower(), re.MULTILINE)
+            #         matches_4 = re.findall(master_regex_4, tweet_text.lower(), re.MULTILINE)
+            #         if matches_1 or matches_2 or matches_3 or matches_4:
+            #             filtered_tweets.append(tweet_text)
+
+        # start = datetime.now()
+        # pot = timedelta(seconds=45)
+        # for sub_tweet in filtered_tweets:
+        #     if start + pot < datetime.now():
+        #         break
+        #     for regex_ in presenters_regex:
+        #         matches = re.findall(regex_, sub_tweet.lower(), re.MULTILINE)
+        #         if matches:
+        #             for award in presenters_regex.get(regex_):
+        #                 tweet_named_entities = get_continous_chunks(sub_tweet)
+        #                 for ne in tweet_named_entities:
+        #                     awards_mapped_to_entities.get(award)[ne] += 1
+
+        # result = award_present_master(awards=awards_mapped_to_entities, db=imdb_total)
+        # print(result)
+        # return result
 
         # for key, val in awards_mapped_to_entities.items():
         #     print("{award}: ".format(award=key))
@@ -984,12 +978,12 @@ def get_presenters(year):
         # }
 
 
-def pre_ceremony():
+def pre_ceremony(year):
     '''This function loads/fetches/processes any data your program
     will use, and stores that data in your DB or in a json, csv, or
     plain text file. It is the first thing the TA will run when grading.
     Do NOT change the name of this function or what it returns.'''
-    # Your code here
+    master_data(year=year)
     print("Pre-ceremony processing complete.")
     return
 
@@ -1000,11 +994,14 @@ def main():
     and then run gg_api.main(). This is the second thing the TA will
     run when grading. Do NOT change the name of this function or
     what it returns.'''
+    master_data(2013)
     # get_nominees(2013)
     # get_winner(2013)
-    # get_presenters(2015)
+    # get_presenters(2013)
     # get_hosts(2013)
-    get_awards(2015)
+    # get_awards(2013)
+    get_best_worst_dressed(2013)
+    get_best_joker(2013)
     return
 
 
@@ -1077,205 +1074,205 @@ def remove_one_word_names(entities):
 
 # best motion picture - drama
 def award_winner_1(entities, db):
-    print("{award}: ".format(award='best motion picture - drama'))
+    # print("{award}: ".format(award='best motion picture - drama'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best motion picture - comedy or musical
 def award_winner_2(entities, db):
-    print("{award}: ".format(award='best motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best motion picture - comedy or musical'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best performance by an actress in a motion picture - drama
 def award_winner_3(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
+    # print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # best performance by an actor in a motion picture - drama
 def award_winner_4(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
+    # print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # best performance by an actress in a motion picture - comedy or musical
 def award_winner_5(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # best performance by an actor in a motion picture - comedy or musical
 def award_winner_6(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # best performance by an actress in a supporting role in any motion picture
 def award_winner_7(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # best performance by an actor in a supporting role in any motion picture
 def award_winner_8(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # Best Direction - Motion Picture (Correct)
 def award_winner_9(entities, db):
-    print("{award}: ".format(award='best director - motion picture'))
+    # print("{award}: ".format(award='best director - motion picture'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
-    show_freq_hosts(merged)
+    # show_freq_hosts(merged)
     max_ = max(merged, key=merged.get) if merged else " "
     return max_
 
 
 # 'best screenplay - motion picture'
 def award_winner_10(entities, db):
-    print("{award}: ".format(award='best screenplay - motion picture'))
+    # print("{award}: ".format(award='best screenplay - motion picture'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best motion picture - animated
 def award_winner_11(entities, db):
-    print("{award}: ".format(award='best motion picture - animated'))
+    # print("{award}: ".format(award='best motion picture - animated'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best motion picture - foreign language
 def award_winner_12(entities, db):
-    print("{award}: ".format(award='best motion picture - foreign language'))
+    # print("{award}: ".format(award='best motion picture - foreign language'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best original score - motion picture
 def award_winner_13(entities, db):
-    print("{award}: ".format(award='best original score - motion picture'))
+    # print("{award}: ".format(award='best original score - motion picture'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best original song - motion picture
 def award_winner_14(entities, db):
-    print("{award}: ".format(award='best original song - motion picture'))
+    # print("{award}: ".format(award='best original song - motion picture'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best television series - drama
 def award_winner_15(entities, db):
-    print("{award}: ".format(award='best television series - drama'))
+    # print("{award}: ".format(award='best television series - drama'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best television series - comedy or musical
 def award_winner_16(entities, db):
-    print("{award}: ".format(award='best television series - comedy or musical'))
+    # print("{award}: ".format(award='best television series - comedy or musical'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
 
 # best television limited series or motion picture made for television
 def award_winner_17(entities, db):
-    print("{award}: ".format(award='best television limited series or motion picture made for television'))
+    # print("{award}: ".format(award='best television limited series or motion picture made for television'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = max(movies, key=movies.get) if movies else " "
     return max_
 
@@ -1283,110 +1280,110 @@ def award_winner_17(entities, db):
 # TODO: Change to movie as winner (maybe, wait for Viktor response)
 # best performance by an actress in a limited series or a motion picture made for television
 def award_winner_18(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
+    # print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # best performance by an actor in a limited series or a motion picture made for television
 def award_winner_19(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
+    # print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # best performance by an actress in a television series - drama
 def award_winner_20(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a television series - drama'))
+    # print("{award}: ".format(award='best performance by an actress in a television series - drama'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # best performance by an actor in a television series - drama
 def award_winner_21(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a television series - drama'))
+    # print("{award}: ".format(award='best performance by an actor in a television series - drama'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # 'best performance by an actress in a television series - comedy or musical'
 def award_winner_22(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # 'best performance by an actor in a television series - comedy or musical'
 def award_winner_23(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television'
 def award_winner_24(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     name = remove_one_word_names(entities=females_only) if females_only else " "
     return name
 
 
 # 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'
 def award_winner_25(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     name = remove_one_word_names(entities=males_only) if males_only else " "
     return name
 
 
 # 'cecil b. demille award'
 def award_winner_26(entities, db):
-    print("{award}: ".format(award='cecil b. demille award'))
+    # print("{award}: ".format(award='cecil b. demille award'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     # merged = merge_keys_for_person_winner_imdb(shorten, db=db)
     # print(merged)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     max_ = max(sub, key=sub.get) if sub else " "
     return max_
 
@@ -1440,288 +1437,288 @@ def calculate_presenters(entities):
 
 # best motion picture - drama
 def award_present_1(entities, db):
-    print("{award}: ".format(award='best motion picture - drama'))
+    # print("{award}: ".format(award='best motion picture - drama'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best motion picture - comedy or musical
 def award_present_2(entities, db):
-    print("{award}: ".format(award='best motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best motion picture - comedy or musical'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actress in a motion picture - drama
 def award_present_3(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
+    # print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actor in a motion picture - drama
 def award_present_4(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
+    # print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actress in a motion picture - comedy or musical
 def award_present_5(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actor in a motion picture - comedy or musical
 def award_present_6(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actress in a supporting role in any motion picture
 def award_present_7(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
+    # print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actor in a supporting role in any motion picture
 def award_present_8(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
+    # print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # Best Direction - Motion Picture (Correct)
 def award_present_9(entities, db):
-    print("{award}: ".format(award='best director - motion picture'))
+    # print("{award}: ".format(award='best director - motion picture'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # 'best screenplay - motion picture'
 def award_present_10(entities, db):
-    print("{award}: ".format(award='best screenplay - motion picture'))
+    # print("{award}: ".format(award='best screenplay - motion picture'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best motion picture - animated
 def award_present_11(entities, db):
-    print("{award}: ".format(award='best motion picture - animated'))
+    # print("{award}: ".format(award='best motion picture - animated'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best motion picture - foreign language
 def award_present_12(entities, db):
-    print("{award}: ".format(award='best motion picture - foreign language'))
+    # print("{award}: ".format(award='best motion picture - foreign language'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 # best original score - motion picture
 def award_present_13(entities, db):
-    print("{award}: ".format(award='best original score - motion picture'))
+    # print("{award}: ".format(award='best original score - motion picture'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best original song - motion picture
 def award_present_14(entities, db):
-    print("{award}: ".format(award='best original song - motion picture'))
+    # print("{award}: ".format(award='best original song - motion picture'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best television series - drama
 def award_present_15(entities, db):
-    print("{award}: ".format(award='best television series - drama'))
+    # print("{award}: ".format(award='best television series - drama'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best television series - comedy or musical
 def award_present_16(entities, db):
-    print("{award}: ".format(award='best television series - comedy or musical'))
+    # print("{award}: ".format(award='best television series - comedy or musical'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best television limited series or motion picture made for television
 def award_present_17(entities, db):
-    print("{award}: ".format(award='best television limited series or motion picture made for television'))
+    # print("{award}: ".format(award='best television limited series or motion picture made for television'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # TODO: Change to movie as winner (maybe, wait for Viktor response)
 # best performance by an actress in a limited series or a motion picture made for television
 def award_present_18(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
+    # print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actor in a limited series or a motion picture made for television
 def award_present_19(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
+    # print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actress in a television series - drama
 def award_present_20(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a television series - drama'))
+    # print("{award}: ".format(award='best performance by an actress in a television series - drama'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # best performance by an actor in a television series - drama
 def award_present_21(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a television series - drama'))
+    # print("{award}: ".format(award='best performance by an actor in a television series - drama'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 # 'best performance by an actress in a television series - comedy or musical'
 def award_present_22(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # 'best performance by an actor in a television series - comedy or musical'
 def award_present_23(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television'
 def award_present_24(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
+    # print(entities)
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'
 def award_present_25(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
+    # print(entities)
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
 # 'cecil b. demille award'
 def award_present_26(entities, db):
-    print("{award}: ".format(award='cecil b. demille award'))
+    # print("{award}: ".format(award='cecil b. demille award'))
     sub = merge_keys_for_person_winner_sub(entities)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     full_names = full_names_only(entities=entities)
     presenters = calculate_presenters(full_names)
-    print(presenters)
+    # print(presenters)
     return presenters
 
 
@@ -1778,37 +1775,37 @@ def calculate_nominees(entities):
 
 # best motion picture - drama
 def award_nominee_1(entities, db):
-    print("{award}: ".format(award='best motion picture - drama'))
+    # print("{award}: ".format(award='best motion picture - drama'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best motion picture - comedy or musical
 def award_nominee_2(entities, db):
-    print("{award}: ".format(award='best motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best motion picture - comedy or musical'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best performance by an actress in a motion picture - drama
 def award_nominee_3(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
+    # print("{award}: ".format(award='best performance by an actress in a motion picture - drama'))
     # shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(entities)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
-    print("Females: {}".format(females_only))
+    # show_freq_hosts(females_only)
+    # print("Females: {}".format(females_only))
     # name = remove_one_word_names(entities=females_only) if females_only else " "
     max_ = calculate_nominees(females_only)
     return max_
@@ -1816,13 +1813,13 @@ def award_nominee_3(entities, db):
 
 # best performance by an actor in a motion picture - drama
 def award_nominee_4(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
+    # print("{award}: ".format(award='best performance by an actor in a motion picture - drama'))
     # shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(entities)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    print("Males: {}".format(males_only))
-    show_freq_hosts(males_only)
+    # print("Males: {}".format(males_only))
+    # show_freq_hosts(males_only)
     # name = remove_one_word_names(entities=males_only) if males_only else " "
     max_ = calculate_nominees(males_only)
     return max_
@@ -1830,157 +1827,157 @@ def award_nominee_4(entities, db):
 
 # best performance by an actress in a motion picture - comedy or musical
 def award_nominee_5(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actress in a motion picture - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     max_ = calculate_nominees(females_only)
     return max_
 
 
 # best performance by an actor in a motion picture - comedy or musical
 def award_nominee_6(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actor in a motion picture - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     max_ = calculate_nominees(males_only)
     return max_
 
 
 # best performance by an actress in a supporting role in any motion picture
 def award_nominee_7(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actress in a supporting role in any motion picture'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     max_ = calculate_nominees(females_only)
     return max_
 
 
 # best performance by an actor in a supporting role in any motion picture
 def award_nominee_8(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actor in a supporting role in any motion picture'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     max_ = calculate_nominees(males_only)
     return max_
 
 
 # Best Direction - Motion Picture (Correct)
 def award_nominee_9(entities, db):
-    print("{award}: ".format(award='best director - motion picture'))
+    # print("{award}: ".format(award='best director - motion picture'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
-    show_freq_hosts(merged)
+    # show_freq_hosts(merged)
     max_ = calculate_nominees(merged)
     return max_
 
 
 # 'best screenplay - motion picture'
 def award_nominee_10(entities, db):
-    print("{award}: ".format(award='best screenplay - motion picture'))
+    # print("{award}: ".format(award='best screenplay - motion picture'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best motion picture - animated
 def award_nominee_11(entities, db):
-    print("{award}: ".format(award='best motion picture - animated'))
+    # print("{award}: ".format(award='best motion picture - animated'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best motion picture - foreign language
 def award_nominee_12(entities, db):
-    print("{award}: ".format(award='best motion picture - foreign language'))
+    # print("{award}: ".format(award='best motion picture - foreign language'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best original score - motion picture
 def award_nominee_13(entities, db):
-    print("{award}: ".format(award='best original score - motion picture'))
+    # print("{award}: ".format(award='best original score - motion picture'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best original song - motion picture
 def award_nominee_14(entities, db):
-    print("{award}: ".format(award='best original song - motion picture'))
+    # print("{award}: ".format(award='best original song - motion picture'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best television series - drama
 def award_nominee_15(entities, db):
-    print("{award}: ".format(award='best television series - drama'))
+    # print("{award}: ".format(award='best television series - drama'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best television series - comedy or musical
 def award_nominee_16(entities, db):
-    print("{award}: ".format(award='best television series - comedy or musical'))
+    # print("{award}: ".format(award='best television series - comedy or musical'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
 
 # best television limited series or motion picture made for television
 def award_nominee_17(entities, db):
-    print("{award}: ".format(award='best television limited series or motion picture made for television'))
+    # print("{award}: ".format(award='best television limited series or motion picture made for television'))
     shorten = shorten_dict(entities)
     names_removed = remove_names(shorten)
     sub = merge_keys_for_person_winner_sub(names_removed)
     movies = is_movie(entities=sub, db=db)
-    show_freq_hosts(movies)
+    # show_freq_hosts(movies)
     max_ = calculate_nominees(movies)
     return max_
 
@@ -1988,112 +1985,169 @@ def award_nominee_17(entities, db):
 # TODO: Change to movie as winner (maybe, wait for Viktor response)
 # best performance by an actress in a limited series or a motion picture made for television
 def award_nominee_18(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
+    # print("{award}: ".format(award='best performance by an actress in a limited series or a motion picture made for television'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     max_ = calculate_nominees(females_only)
     return max_
 
 
 # best performance by an actor in a limited series or a motion picture made for television
 def award_nominee_19(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
+    # print("{award}: ".format(award='best performance by an actor in a limited series or a motion picture made for television'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     max_ = calculate_nominees(males_only)
     return max_
 
 
 # best performance by an actress in a television series - drama
 def award_nominee_20(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a television series - drama'))
+    # print("{award}: ".format(award='best performance by an actress in a television series - drama'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     max_ = calculate_nominees(females_only)
     return max_
 
 
 # best performance by an actor in a television series - drama
 def award_nominee_21(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a television series - drama'))
+    # print("{award}: ".format(award='best performance by an actor in a television series - drama'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     max_ = calculate_nominees(males_only)
     return max_
 
 
 # 'best performance by an actress in a television series - comedy or musical'
 def award_nominee_22(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actress in a television series - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     max_ = calculate_nominees(females_only)
     return max_
 
 
 # 'best performance by an actor in a television series - comedy or musical'
 def award_nominee_23(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
+    # print("{award}: ".format(award='best performance by an actor in a television series - comedy or musical'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     max_ = calculate_nominees(males_only)
     return max_
 
 
 # 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television'
 def award_nominee_24(entities, db):
-    print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actress in a supporting role in a series, limited series or motion picture made for television'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     females_only = only_female_entities(merged)
-    show_freq_hosts(females_only)
+    # show_freq_hosts(females_only)
     max_ = calculate_nominees(females_only)
     return max_
 
 
 # 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television'
 def award_nominee_25(entities, db):
-    print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
-    print(entities)
+    # print("{award}: ".format(award='best performance by an actor in a supporting role in a series, limited series or motion picture made for television'))
+    # print(entities)
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     merged = merge_keys_for_person_winner_imdb(sub, db=db)
     males_only = only_male_entities(merged)
-    show_freq_hosts(males_only)
+    # show_freq_hosts(males_only)
     max_ = calculate_nominees(males_only)
     return max_
 
 
 # 'cecil b. demille award'
 def award_nominee_26(entities, db):
-    print("{award}: ".format(award='cecil b. demille award'))
+    # print("{award}: ".format(award='cecil b. demille award'))
     shorten = shorten_dict(entities)
     sub = merge_keys_for_person_winner_sub(shorten)
     # merged = merge_keys_for_person_winner_imdb(shorten, db=db)
     # print(merged)
-    show_freq_hosts(sub)
+    # show_freq_hosts(sub)
     max_ = max(sub, key=sub.get) if sub else " "
     return max_
+
+
+def get_best_worst_dressed(year):
+    best_dressed = defaultdict(int)
+    worst_dressed = defaultdict(int)
+
+    for tweet in accumulated_tweets['Best Dressed']:
+        tweet_named_entities = get_continous_chunks(tweet)
+        for ne in tweet_named_entities:
+            best_dressed[ne] += 1
+    for tweet in accumulated_tweets['Worst Dressed']:
+        tweet_named_entities = get_continous_chunks(tweet)
+        for ne in tweet_named_entities:
+            worst_dressed[ne] += 1
+
+    result_best = merge_keys(best_dressed)
+    result_worst = merge_keys(worst_dressed)
+
+    freq_best = nltk.FreqDist(result_best).most_common()
+    freq_worst = nltk.FreqDist(result_worst).most_common()
+    bestCount = 0
+    print("Best Dressed: "),
+    for key, val in freq_best:
+        bestCount += 1
+        print("{k}: {v}".format(k=key, v=val))
+        if bestCount >= 3:
+            break
+    print("\n")
+    print("Worst Dressed: "),
+    worstCount = 0
+    for key, val in freq_worst:
+        worstCount += 1
+        print("{k}: {v}".format(k=key, v=val))
+        if worstCount >= 3:
+            break
+    print("\n")
+    return freq_best, freq_worst
+
+
+def get_best_joker(year):
+    best_joker = defaultdict(int)
+
+    for tweet in accumulated_tweets['Best Joker']:
+        tweet_named_entities = get_continous_chunks(tweet)
+        for ne in tweet_named_entities:
+            best_joker[ne] += 1
+
+    result_best = merge_keys(best_joker)
+
+    freq_best = nltk.FreqDist(result_best).most_common()
+    bestCount = 0
+    print("Best Jokers: "),
+    for key, val in freq_best:
+        bestCount += 1
+        print("{k}: {v}".format(k=key, v=val))
+        if bestCount >= 3:
+            break
 
 
 if __name__ == '__main__':
