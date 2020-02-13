@@ -2,13 +2,14 @@
 Golden Globe Project Master
 
 Prerequistes:
-- NLTK
-- Fuzzywuzzy which requires python-levenshtein
+- NLTK (https://www.nltk.org/install.html)
+- Numpy (https://www.nltk.org/install.html)
+- Fuzzywuzzy which requires python-levenshtein (https://www.geeksforgeeks.org/fuzzywuzzy-python-library/)
 - Ensure that the data folder holds rpm_{year}.json where year is any year from 2010 up until 2020. These files are the IMDB json data files that consist of people in imdb matched with the titles of the movies they are known for. 
 - Also ensure that the gg2013.json, gg2015.json, and gg2020.json files are in the data folder. Any data files should be of the form `gg[year].json`.
 
 To run submission:
-- Install dependencies using `pip3 install -r requirements.txt`
+- Install dependencies using `pip3 install -r requirements.txt`. Also use the links above to install the dependencies.
 - In console, type "python3 autograder.py {year}", year being the year of data you want to run it on.
 
 Note:
